@@ -1,6 +1,6 @@
 "use client";
 
-import { DndContext, DragEndEvent, PointerSensor, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, PointerSensor, TouchSensor, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import useSWR from "swr";
@@ -87,7 +87,10 @@ export default function KanbanBoard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [addingStatus, setAddingStatus] = useState<TaskStatus | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
 
   useEffect(() => {
