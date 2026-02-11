@@ -1,105 +1,55 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a1a2e"/>
-      <stop offset="100%" style="stop-color:#16213e"/>
-    </linearGradient>
-    <linearGradient id="card1" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#e94560"/>
       <stop offset="100%" style="stop-color:#c23152"/>
     </linearGradient>
-    <linearGradient id="card2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#533483"/>
-      <stop offset="100%" style="stop-color:#0f3460"/>
-    </linearGradient>
-    <linearGradient id="card3" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f3460"/>
-      <stop offset="100%" style="stop-color:#1a1a4e"/>
-    </linearGradient>
-    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
-    </filter>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
   
-  <!-- Background -->
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Background (maskable safe zone friendly) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
   
-  <!-- Kanban columns (3 columns) -->
-  <!-- Column 1 -->
-  <rect x="48" y="100" width="120" height="312" rx="16" fill="#2a2a3e" opacity="0.6"/>
-  <!-- Column 2 -->
-  <rect x="196" y="100" width="120" height="312" rx="16" fill="#2a2a3e" opacity="0.6"/>
-  <!-- Column 3 -->
-  <rect x="344" y="100" width="120" height="312" rx="16" fill="#2a2a3e" opacity="0.6"/>
-  
-  <!-- Column dots -->
-  <circle cx="80" cy="124" r="6" fill="#e94560"/>
-  <circle cx="96" cy="124" r="6" fill="#f5a623"/>
-  <circle cx="112" cy="124" r="6" fill="#4ade80"/>
-  
-  <circle cx="228" cy="124" r="6" fill="#e94560"/>
-  <circle cx="244" cy="124" r="6" fill="#f5a623"/>
-  <circle cx="260" cy="124" r="6" fill="#4ade80"/>
-  
-  <circle cx="376" cy="124" r="6" fill="#e94560"/>
-  <circle cx="392" cy="124" r="6" fill="#f5a623"/>
-  <circle cx="408" cy="124" r="6" fill="#4ade80"/>
-  
-  <!-- Cards Column 1 -->
-  <rect x="60" y="148" width="96" height="56" rx="10" fill="url(#card1)" filter="url(#shadow)"/>
-  <rect x="68" y="158" width="48" height="6" rx="3" fill="#fff" opacity="0.9"/>
-  <rect x="68" y="170" width="72" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  <rect x="68" y="180" width="56" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  <circle cx="144" cy="192" r="8" fill="#ffb8c6"/>
-  
-  <rect x="60" y="216" width="96" height="48" rx="10" fill="url(#card2)" filter="url(#shadow)"/>
-  <rect x="68" y="226" width="56" height="6" rx="3" fill="#fff" opacity="0.9"/>
-  <rect x="68" y="238" width="72" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  
-  <rect x="60" y="276" width="96" height="48" rx="10" fill="url(#card3)" filter="url(#shadow)"/>
-  <rect x="68" y="286" width="64" height="6" rx="3" fill="#fff" opacity="0.9"/>
-  <rect x="68" y="298" width="48" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  
-  <!-- Cards Column 2 -->
-  <rect x="208" y="148" width="96" height="64" rx="10" fill="url(#card2)" filter="url(#shadow)"/>
-  <rect x="216" y="158" width="56" height="6" rx="3" fill="#fff" opacity="0.9"/>
-  <rect x="216" y="170" width="72" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  <rect x="216" y="180" width="64" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  <rect x="216" y="192" width="40" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  
-  <rect x="208" y="224" width="96" height="48" rx="10" fill="url(#card1)" filter="url(#shadow)" opacity="0.8"/>
-  <rect x="216" y="234" width="48" height="6" rx="3" fill="#fff" opacity="0.9"/>
-  <rect x="216" y="246" width="64" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  
-  <!-- Cards Column 3 -->
-  <rect x="356" y="148" width="96" height="48" rx="10" fill="url(#card3)" filter="url(#shadow)"/>
-  <rect x="364" y="158" width="56" height="6" rx="3" fill="#fff" opacity="0.9"/>
-  <rect x="364" y="170" width="72" height="4" rx="2" fill="#fff" opacity="0.4"/>
-  <!-- Checkmark -->
-  <path d="M432 158 l-8 8 l-4 -4" stroke="#4ade80" stroke-width="3" fill="none" stroke-linecap="round"/>
-  
-  <!-- Pig face at bottom -->
+  <!-- Pig face - centered for maskable icon safe zone -->
   <!-- Main face -->
-  <ellipse cx="256" cy="430" rx="52" ry="44" fill="#FFB6C1"/>
+  <ellipse cx="256" cy="268" rx="120" ry="108" fill="#FFD4DE"/>
+  
   <!-- Ears -->
-  <ellipse cx="216" cy="396" rx="18" ry="22" fill="#FFB6C1" transform="rotate(-15 216 396)"/>
-  <ellipse cx="216" cy="396" rx="10" ry="14" fill="#FF9CAD" transform="rotate(-15 216 396)"/>
-  <ellipse cx="296" cy="396" rx="18" ry="22" fill="#FFB6C1" transform="rotate(15 296 396)"/>
-  <ellipse cx="296" cy="396" rx="10" ry="14" fill="#FF9CAD" transform="rotate(15 296 396)"/>
+  <ellipse cx="160" cy="180" rx="44" ry="54" fill="#FFD4DE" transform="rotate(-15 160 180)"/>
+  <ellipse cx="160" cy="180" rx="28" ry="36" fill="#FFB6C8" transform="rotate(-15 160 180)"/>
+  <ellipse cx="352" cy="180" rx="44" ry="54" fill="#FFD4DE" transform="rotate(15 352 180)"/>
+  <ellipse cx="352" cy="180" rx="28" ry="36" fill="#FFB6C8" transform="rotate(15 352 180)"/>
+  
   <!-- Eyes -->
-  <circle cx="240" cy="424" r="6" fill="#1a1a2e"/>
-  <circle cx="272" cy="424" r="6" fill="#1a1a2e"/>
-  <circle cx="242" cy="422" r="2.5" fill="#fff"/>
-  <circle cx="274" cy="422" r="2.5" fill="#fff"/>
+  <circle cx="212" cy="248" r="18" fill="#1a1a2e"/>
+  <circle cx="300" cy="248" r="18" fill="#1a1a2e"/>
+  <!-- Eye shine -->
+  <circle cx="218" cy="242" r="7" fill="#fff"/>
+  <circle cx="306" cy="242" r="7" fill="#fff"/>
+  <circle cx="206" cy="254" r="3.5" fill="#fff" opacity="0.6"/>
+  <circle cx="294" cy="254" r="3.5" fill="#fff" opacity="0.6"/>
+  
   <!-- Snout -->
-  <ellipse cx="256" cy="442" rx="18" ry="12" fill="#FF9CAD"/>
-  <circle cx="250" cy="442" r="3" fill="#1a1a2e"/>
-  <circle cx="262" cy="442" r="3" fill="#1a1a2e"/>
+  <ellipse cx="256" cy="304" rx="48" ry="32" fill="#FFB6C8"/>
+  <!-- Nostrils -->
+  <ellipse cx="240" cy="306" r="10" ry="8" fill="#1a1a2e" opacity="0.6"/>
+  <ellipse cx="272" cy="306" r="10" ry="8" fill="#1a1a2e" opacity="0.6"/>
+  
   <!-- Blush -->
-  <ellipse cx="228" cy="436" rx="10" ry="6" fill="#FF8FAB" opacity="0.5"/>
-  <ellipse cx="284" cy="436" rx="10" ry="6" fill="#FF8FAB" opacity="0.5"/>
+  <ellipse cx="170" cy="284" rx="24" ry="14" fill="#FF8FAB" opacity="0.45"/>
+  <ellipse cx="342" cy="284" rx="24" ry="14" fill="#FF8FAB" opacity="0.45"/>
+  
+  <!-- Smile -->
+  <path d="M230 330 Q256 350 282 330" stroke="#1a1a2e" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"/>
+  
+  <!-- Small kanban cards on top of head -->
+  <rect x="220" y="148" width="24" height="32" rx="4" fill="#fff" opacity="0.9"/>
+  <rect x="244" y="148" width="24" height="32" rx="4" fill="#fff" opacity="0.7"/>
+  <rect x="268" y="148" width="24" height="32" rx="4" fill="#fff" opacity="0.5"/>
+  <!-- Mini lines on cards -->
+  <rect x="224" y="154" width="16" height="3" rx="1.5" fill="#e94560" opacity="0.8"/>
+  <rect x="224" y="160" width="12" height="2" rx="1" fill="#999" opacity="0.5"/>
+  <rect x="248" y="154" width="16" height="3" rx="1.5" fill="#533483" opacity="0.8"/>
+  <rect x="272" y="154" width="16" height="3" rx="1.5" fill="#0f3460" opacity="0.8"/>
+  <!-- Checkmark on last card -->
+  <path d="M278 164 l4 4 l8 -8" stroke="#4ade80" stroke-width="2.5" fill="none" stroke-linecap="round"/>
 </svg>
