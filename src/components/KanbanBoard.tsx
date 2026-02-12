@@ -48,11 +48,12 @@ function MoveMenu({ task, onMove }: { task: Task; onMove: (id: string, status: T
   );
 }
 
-function TaskCard({ task, onEdit, onDelete, onMove, isDragOverlay }: {
+function TaskCard({ task, onEdit, onDelete, onMove, onViewDetail, isDragOverlay }: {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onMove: (id: string, status: TaskStatus) => void;
+  onViewDetail: (task: Task) => void;
   isDragOverlay?: boolean;
 }) {
   const sortable = useSortable({ id: task.id, data: { task } });
@@ -84,6 +85,7 @@ function TaskCard({ task, onEdit, onDelete, onMove, isDragOverlay }: {
       </div>
       {task.note && <p className="mt-2 text-xs text-zinc-400 line-clamp-2">{task.note}</p>}
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
+        <button onClick={(e) => { e.stopPropagation(); onViewDetail(task); }} className="rounded bg-blue-700/80 px-2 py-1 hover:bg-blue-600">詳情</button>
         <MoveMenu task={task} onMove={onMove} />
         <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="rounded bg-zinc-700 px-2 py-1 hover:bg-zinc-600">編輯</button>
         <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="rounded bg-red-800/80 px-2 py-1 hover:bg-red-700">刪除</button>
@@ -97,6 +99,89 @@ function Column({ status, children }: { status: TaskStatus; children: React.Reac
   return (
     <div ref={setNodeRef} className={`min-w-[280px] md:min-w-[320px] rounded-2xl p-3 border snap-start shrink-0 ${isOver ? "bg-[#2a2a46] border-blue-400/50" : "bg-[#222236] border-white/10"}`}>
       {children}
+    </div>
+  );
+}
+
+function TaskDetailDrawer({ task, onClose, onUpdate }: { task: Task; onClose: () => void; onUpdate: () => void }) {
+  const [replyText, setReplyText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setSubmitting(true);
+    try {
+      const newNote = task.note ? `${task.note}\n\n---\n${replyText}` : replyText;
+      await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: newNote }),
+      });
+      setReplyText("");
+      onUpdate();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-50" onClick={onClose}>
+      <div
+        className="w-full md:max-w-2xl max-h-[85vh] md:max-h-[90vh] rounded-t-3xl md:rounded-2xl bg-[#232336] border-t md:border border-white/10 overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-white/10 flex items-start justify-between">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold mb-2">{task.title}</h2>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded">{STATUS_META[task.status].emoji} {STATUS_META[task.status].label}</span>
+              <span className="bg-zinc-700 text-zinc-300 px-2 py-1 rounded">👤 {task.assignee}</span>
+              <span className="bg-zinc-700 text-zinc-300 px-2 py-1 rounded">{task.priority}</span>
+              {task.dueDate && <span className="bg-zinc-700 text-zinc-300 px-2 py-1 rounded">📅 {task.dueDate}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-2xl ml-4">×</button>
+        </div>
+
+        {/* Notes Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <h3 className="text-sm font-semibold text-zinc-400 mb-3">💬 備註對話</h3>
+          {task.note ? (
+            <div className="space-y-3">
+              {task.note.split("\n---\n").map((msg, idx) => (
+                <div key={idx} className="rounded-lg bg-[#2a2a3e] p-3 border border-white/10">
+                  <p className="text-sm text-zinc-200 whitespace-pre-wrap">{msg}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-zinc-500 text-sm italic">尚無備註</p>
+          )}
+        </div>
+
+        {/* Reply Input */}
+        <div className="p-4 border-t border-white/10 bg-[#1a1a2e]">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 rounded-lg bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="輸入回覆..."
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleReply()}
+              disabled={submitting}
+            />
+            <button
+              onClick={handleReply}
+              disabled={submitting || !replyText.trim()}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? "..." : "送出"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -139,6 +224,7 @@ export default function KanbanBoard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [addingStatus, setAddingStatus] = useState<TaskStatus | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -215,7 +301,7 @@ export default function KanbanBoard() {
               </div>
               <SortableContext items={(grouped[status] ?? []).map((t) => t.id)} strategy={rectSortingStrategy}>
                 <div className="space-y-3 min-h-12">
-                  {(grouped[status] ?? []).map((task) => <TaskCard key={task.id} task={task} onEdit={setEditingTask} onDelete={deleteTask} onMove={moveTask} />)}
+                  {(grouped[status] ?? []).map((task) => <TaskCard key={task.id} task={task} onEdit={setEditingTask} onDelete={deleteTask} onMove={moveTask} onViewDetail={setDetailTask} />)}
                 </div>
               </SortableContext>
               <button onClick={() => setAddingStatus(status)} className="mt-3 w-full rounded-lg border border-dashed border-blue-400/50 py-2 text-sm text-blue-300 hover:bg-blue-500/10">+ 新增任務</button>
@@ -223,12 +309,13 @@ export default function KanbanBoard() {
           ))}
         </div>
         <DragOverlay>
-          {activeTask ? <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} onMove={() => {}} isDragOverlay /> : null}
+          {activeTask ? <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} onMove={() => {}} onViewDetail={() => {}} isDragOverlay /> : null}
         </DragOverlay>
       </DndContext>
 
       {addingStatus && <TaskForm onClose={() => setAddingStatus(null)} onSubmit={(input) => createTask(addingStatus, input)} initial={{ status: addingStatus }} />}
       {editingTask && <TaskForm initial={editingTask} onClose={() => setEditingTask(null)} onSubmit={(input) => updateTask(editingTask.id, input)} />}
+      {detailTask && <TaskDetailDrawer task={detailTask} onClose={() => setDetailTask(null)} onUpdate={() => { mutate(); setDetailTask(tasks.find(t => t.id === detailTask.id) || null); }} />}
     </>
   );
 }
