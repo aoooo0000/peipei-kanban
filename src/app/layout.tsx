@@ -5,7 +5,7 @@ import BottomNav from "@/components/BottomNav";
 export const metadata: Metadata = {
   title: "🐷 霈霈豬儀表板",
   description: "Notion + OpenClaw Integrated Dashboard PWA",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.json",
   icons: [{ rel: "apple-touch-icon", url: "/icons/icon-192.png" }],
 };
 
