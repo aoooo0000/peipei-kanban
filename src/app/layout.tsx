@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
-  title: "🐷 霈霈豬任務看板",
-  description: "Notion-powered Kanban PWA",
+  title: "🐷 霈霈豬儀表板",
+  description: "Notion + OpenClaw Integrated Dashboard PWA",
   manifest: "/manifest.webmanifest",
   icons: [{ rel: "apple-touch-icon", url: "/icons/icon-192.png" }],
 };
@@ -15,7 +16,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-Hant">
-      <body>{children}</body>
+      <body className="pb-16">
+        {children}
+        <BottomNav />
+      </body>
     </html>
   );
 }
