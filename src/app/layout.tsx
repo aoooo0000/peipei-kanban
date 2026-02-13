@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 
 export const metadata: Metadata = {
   title: "🐷 霈霈豬儀表板",
@@ -17,8 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-Hant">
       <body className="pb-16">
-        {children}
-        <BottomNav />
+        <SessionProviderWrapper>
+          {children}
+          <BottomNav />
+        </SessionProviderWrapper>
       </body>
     </html>
   );

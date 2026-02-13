@@ -20,6 +20,23 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment Variables
+
+Copy `.env.local.example` to `.env.local` and fill in values:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Required auth variables:
+- `NEXTAUTH_URL=https://peipei-kanban.vercel.app`
+- `NEXTAUTH_SECRET` (generate with `openssl rand -base64 32`)
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+
+Google OAuth redirect URI:
+- `https://peipei-kanban.vercel.app/api/auth/callback/google`
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
