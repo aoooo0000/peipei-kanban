@@ -94,7 +94,12 @@ export default function Home() {
       <section className="mb-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-xl font-bold">Agent 狀態</h2>
-          {statusData && <p className="text-xs text-white/70 shrink-0">v{statusData.version} · uptime {statusData.uptime}</p>}
+          <div className="flex items-center gap-2 shrink-0">
+            {statusData && <p className="text-xs text-white/70 hidden sm:block">v{statusData.version} · uptime {statusData.uptime}</p>}
+            <Link href="/settings" aria-label="前往設定" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-sm hover:bg-white/10">
+              ⚙️
+            </Link>
+          </div>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
           {(statusData?.agents ?? []).map((agent, idx) => {

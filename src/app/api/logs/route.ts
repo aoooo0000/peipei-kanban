@@ -52,5 +52,10 @@ function getDemoLogs(): LogEntry[] {
 }
 
 export async function GET() {
-  return NextResponse.json({ logs: getDemoLogs() });
+  try {
+    return NextResponse.json({ logs: getDemoLogs() });
+  } catch (error) {
+    console.error("GET /api/logs error", error);
+    return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
+  }
 }

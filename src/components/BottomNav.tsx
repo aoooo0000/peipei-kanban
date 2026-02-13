@@ -8,7 +8,6 @@ const TABS = [
   { path: "/dashboard", icon: "📊", label: "分析" },
   { path: "/invest", icon: "💰", label: "投資" },
   { path: "/logs", icon: "📝", label: "日誌" },
-  { path: "/settings", icon: "⚙️", label: "設定" },
 ];
 
 export default function BottomNav() {

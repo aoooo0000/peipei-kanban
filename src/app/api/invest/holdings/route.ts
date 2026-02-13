@@ -90,7 +90,7 @@ export async function GET() {
 
     // Filter out zero holdings
     const holdings = Array.from(holdingsMap.entries())
-      .filter(([_, data]) => data.shares > 0)
+      .filter(([, data]) => data.shares > 0)
       .map(([symbol, data]) => ({
         symbol,
         shares: data.shares,
