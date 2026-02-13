@@ -4,7 +4,7 @@ import { DndContext, DragEndEvent, DragOverlay, PointerSensor, TouchSensor, useD
 import { SortableContext, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import useSWR from "swr";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Assignee, Priority, Task, TaskStatus } from "@/lib/notion";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -246,7 +246,10 @@ export default function KanbanBoard() {
   const [addingStatus, setAddingStatus] = useState<TaskStatus | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
-  const [screenMode, setScreenMode] = useState<ScreenMode>("large");
+  const [screenMode, setScreenMode] = useState<ScreenMode>(() => {
+    if (typeof window === "undefined") return "large";
+    return getScreenMode(window.innerWidth);
+  });
   const [accordionOpen, setAccordionOpen] = useState<Record<TaskStatus, boolean>>({
     Ideas: false,
     "To-do": false,
@@ -267,39 +270,44 @@ export default function KanbanBoard() {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleResize = () => {
-      const nextMode = getScreenMode(window.innerWidth);
-      setScreenMode((prev) => {
-        if (nextMode === "small" && prev !== "small") {
-          const groupedNow = Object.fromEntries(
-            STATUSES.map((status) => [status, tasks.filter((task) => task.status === status)]),
-          ) as Record<TaskStatus, Task[]>;
-          setAccordionOpen(getDefaultAccordionOpen(groupedNow));
-        }
-        return nextMode;
-      });
-    };
-
-    const mq = window.matchMedia("(max-width: 639px)");
-    handleResize();
-
-    mq.addEventListener("change", handleResize);
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      mq.removeEventListener("change", handleResize);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [tasks]);
-
   const grouped = useMemo(
     () => Object.fromEntries(STATUSES.map((status) => [status, tasks.filter((task) => task.status === status)])) as Record<TaskStatus, Task[]>,
     [tasks],
   );
+  const groupedRef = useRef(grouped);
 
+  useEffect(() => {
+    groupedRef.current = grouped;
+  }, [grouped]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let rafId: number | null = null;
+    let prevMode = getScreenMode(window.innerWidth);
+
+    const handleResize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const nextMode = getScreenMode(window.innerWidth);
+
+        if (nextMode === "small" && prevMode !== "small") {
+          setAccordionOpen(getDefaultAccordionOpen(groupedRef.current));
+        }
+
+        prevMode = nextMode;
+        setScreenMode(nextMode);
+      });
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize, { passive: true });
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const moveTask = async (id: string, status: TaskStatus) => {
     await fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
@@ -353,10 +361,10 @@ export default function KanbanBoard() {
   };
 
   const boardLayoutClass = screenMode === "small"
-    ? "space-y-3"
+    ? "space-y-3 transition-all duration-200"
     : screenMode === "medium"
-      ? "grid grid-cols-2 gap-4"
-      : "grid grid-cols-5 gap-4 overflow-x-auto pb-2";
+      ? "grid grid-cols-2 gap-4 transition-all duration-200"
+      : "grid grid-cols-5 gap-4 overflow-x-auto pb-2 transition-all duration-200";
 
   return (
     <>

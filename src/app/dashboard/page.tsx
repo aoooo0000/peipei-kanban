@@ -21,6 +21,8 @@ const STATUS_STYLES = {
   acting: { bg: "bg-blue-500/20", text: "text-blue-400", label: "執行中" },
 };
 
+const TASK_STATUS_ORDER = ["Ideas", "To-do", "進行中", "Review", "完成", "未分類"];
+
 export default function DashboardPage() {
   const { data: statusData } = useSWR<AgentStatus>("/api/status", fetcher, { refreshInterval: 3000 });
   const { data: tasksData } = useSWR<TaskSummary>("/api/dashboard/tasks", fetcher, { refreshInterval: 10000 });
@@ -28,11 +30,22 @@ export default function DashboardPage() {
   const status = statusData?.state ?? "idle";
   const style = STATUS_STYLES[status];
 
+  const byStatus = tasksData?.byStatus ?? {};
+  const normalizedByStatus = Object.entries(byStatus).reduce<Record<string, number>>((acc, [key, value]) => {
+    const normalizedKey = key === "Backlog" ? "Ideas" : key;
+    acc[normalizedKey] = (acc[normalizedKey] || 0) + value;
+    return acc;
+  }, {});
+
+  const statusEntries = [
+    ...TASK_STATUS_ORDER.filter((s) => s in normalizedByStatus).map((statusKey) => [statusKey, normalizedByStatus[statusKey]] as const),
+    ...Object.entries(normalizedByStatus).filter(([key]) => !TASK_STATUS_ORDER.includes(key)),
+  ];
+
   return (
     <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 p-4 md:p-6">
       <h1 className="text-2xl md:text-3xl font-bold mb-6">📊 總覽</h1>
 
-      {/* Agent 狀態燈 */}
       <section className="mb-6">
         <div className={`rounded-2xl p-6 border border-white/10 ${style.bg}`}>
           <div className="flex items-center justify-between">
@@ -58,7 +71,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* 任務摘要 */}
       <section>
         <h2 className="text-lg font-semibold mb-4">任務概況</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -66,13 +78,12 @@ export default function DashboardPage() {
             <div className="text-3xl font-bold text-blue-400">{tasksData?.total ?? 0}</div>
             <div className="text-sm text-zinc-400 mt-1">總任務數</div>
           </div>
-          {tasksData?.byStatus &&
-            Object.entries(tasksData.byStatus).map(([status, count]) => (
-              <div key={status} className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10">
-                <div className="text-2xl font-bold text-zinc-200">{count}</div>
-                <div className="text-xs text-zinc-400 mt-1">{status}</div>
-              </div>
-            ))}
+          {statusEntries.map(([statusKey, count]) => (
+            <div key={statusKey} className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10">
+              <div className="text-2xl font-bold text-zinc-200">{count}</div>
+              <div className="text-xs text-zinc-400 mt-1">{statusKey}</div>
+            </div>
+          ))}
         </div>
       </section>
     </main>

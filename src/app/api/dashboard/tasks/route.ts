@@ -1,26 +1,24 @@
 import { NextResponse } from "next/server";
-import { Client } from "@notionhq/client";
-import { readFile } from "fs/promises";
+import { getNotionClient, getDatabaseId } from "@/lib/notion";
 
-async function getNotionClient() {
-  const apiKey = await readFile(`${process.env.HOME}/.config/notion/api_key`, "utf-8");
-  return new Client({ auth: apiKey.trim() });
-}
+export const dynamic = "force-dynamic";
+
+const STATUS_MAP: Record<string, string> = {
+  Backlog: "Ideas",
+};
 
 export async function GET() {
   try {
     const notion = await getNotionClient();
-    const databaseId = "30155d1f-de22-8190-950d-c20cbff9e520";
-
     const response = await notion.databases.query({
-      database_id: databaseId,
+      database_id: getDatabaseId(),
     });
 
     const byStatus: Record<string, number> = {};
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    response.results.forEach((page: any) => {
-      const status = page.properties["狀態"]?.select?.name || "未分類";
+    response.results.forEach((page) => {
+      const rawStatus =
+        ((page as { properties?: Record<string, { select?: { name?: string } }> }).properties?.["狀態"]?.select?.name) || "未分類";
+      const status = STATUS_MAP[rawStatus] ?? rawStatus;
       byStatus[status] = (byStatus[status] || 0) + 1;
     });
 
@@ -30,9 +28,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Failed to fetch task summary:", error);
-    return NextResponse.json(
-      { total: 0, byStatus: {} },
-      { status: 500 }
-    );
+    return NextResponse.json({ total: 0, byStatus: {} }, { status: 500 });
   }
 }
