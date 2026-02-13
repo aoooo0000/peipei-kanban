@@ -220,7 +220,7 @@ export default function FlowPage() {
 
   return (
     <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
-      <h1 className="text-2xl md:text-3xl font-bold mb-4">🔄 流程</h1>
+      <h1 className="text-xl font-bold mb-4">🔄 流程</h1>
       <div className="flex gap-2 mb-5">{[{ key: "architecture" as Tab, label: "🏗️ 架構圖" }, { key: "workflow" as Tab, label: "⚡ 工作流程" }].map(({ key, label }, idx) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all stagger-item ${tab === key ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "glass-card text-zinc-300 hover:bg-[#333350] border border-white/10"}`} style={{ ["--stagger" as string]: `${idx * 70}ms` }}>{label}</button>)}</div>
       {tab === "architecture" ? <ArchitectureDiagram /> : <div className="space-y-6">{WORKFLOWS.map((wf, i) => <div key={wf.title} className="stagger-item" style={{ ["--stagger" as string]: `${i * 90}ms` }}><WorkflowSection workflow={wf} /></div>)}</div>}
     </main>

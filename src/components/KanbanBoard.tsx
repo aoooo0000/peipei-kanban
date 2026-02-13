@@ -369,7 +369,7 @@ export default function KanbanBoard() {
 
   return (
     <>
-      <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">🐷 霈霈豬任務看板</h1>
+      <h1 className="text-xl font-bold mb-4 md:mb-6">🐷 霈霈豬任務看板</h1>
       <div className={boardLayoutClass}>
         {STATUSES.map((status) => {
           const count = grouped[status]?.length ?? 0;

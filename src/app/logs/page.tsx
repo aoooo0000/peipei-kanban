@@ -33,7 +33,7 @@ export default function LogsPage() {
 
   return (
     <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp">
-      <h1 className="text-2xl md:text-3xl font-bold mb-5">📋 Activity Log</h1>
+      <h1 className="text-xl font-bold mb-5">📋 Activity Log</h1>
 
       <div className="mb-6 flex flex-wrap gap-2">
         {(Object.keys(TYPE_META) as Array<keyof typeof TYPE_META>).map((type) => {

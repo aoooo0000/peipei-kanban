@@ -4,11 +4,10 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 
 const TABS = [
-  { path: "/", icon: "📋", label: "看板" },
-  { path: "/dashboard", icon: "📊", label: "總覽" },
-  { path: "/schedule", icon: "🗓️", label: "排程" },
+  { path: "/", icon: "🏠", label: "首頁" },
+  { path: "/dashboard", icon: "📊", label: "分析" },
+  { path: "/invest", icon: "💰", label: "投資" },
   { path: "/logs", icon: "📝", label: "日誌" },
-  { path: "/invest", icon: "📈", label: "投資" },
 ];
 
 export default function BottomNav() {
@@ -24,7 +23,7 @@ export default function BottomNav() {
               key={tab.path}
               href={tab.path}
               className={`relative flex flex-col items-center justify-center flex-1 h-full transition-all ${
-                isActive ? "text-[#667eea] drop-shadow-[0_0_8px_rgba(102,126,234,0.65)]" : "text-white/60 hover:text-white/90"
+                isActive ? "text-[#667eea] drop-shadow-[0_0_8px_rgba(102,126,234,0.65)]" : "text-white/70 hover:text-white"
               }`}
             >
               <span className="text-xl mb-1">{tab.icon}</span>

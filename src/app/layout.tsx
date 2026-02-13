@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
+import PullToRefresh from "@/components/PullToRefresh";
 
 export const metadata: Metadata = {
   title: "🐷 霈霈豬儀表板",
@@ -19,8 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-Hant">
       <body className="pb-16 text-white antialiased">
         <SessionProviderWrapper>
-          {children}
-          <BottomNav />
+          <PullToRefresh>
+            {children}
+            <BottomNav />
+          </PullToRefresh>
         </SessionProviderWrapper>
       </body>
     </html>

@@ -1,89 +1,109 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const STATUS_ORDER = ["Ideas", "To-do", "進行中", "Review", "完成", "未分類"];
 
-interface AgentStatus {
-  state: "idle" | "thinking" | "acting";
-  activeAgent?: string;
-  lastUpdate?: string;
+interface Task {
+  id: string;
+  title: string;
+  status: string;
 }
 
-interface TaskSummary {
-  total: number;
-  byStatus: Record<string, number>;
+function CompletionRing({ percent }: { percent: number }) {
+  return (
+    <div
+      className="relative h-36 w-36 rounded-full"
+      style={{
+        background: `conic-gradient(#667eea ${percent * 3.6}deg, rgba(255,255,255,0.14) 0deg)`,
+      }}
+    >
+      <div className="absolute inset-3 rounded-full bg-[#101827] glass-card flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl font-bold">{percent}%</p>
+          <p className="text-xs text-white/70">完成率</p>
+        </div>
+      </div>
+    </div>
+  );
 }
-
-const STATUS_STYLES = {
-  idle: { bg: "bg-emerald-500/10", text: "text-emerald-300", dot: "status-glow-idle", label: "閒置中" },
-  thinking: { bg: "bg-amber-500/10", text: "text-amber-300", dot: "status-glow-thinking", label: "思考中" },
-  acting: { bg: "bg-red-500/10", text: "text-red-300", dot: "status-glow-acting", label: "執行中" },
-};
-
-const TASK_STATUS_ORDER = ["Ideas", "To-do", "進行中", "Review", "完成", "未分類"];
 
 export default function DashboardPage() {
-  const { data: statusData } = useSWR<AgentStatus>("/api/status", fetcher, { refreshInterval: 3000 });
-  const { data: tasksData } = useSWR<TaskSummary>("/api/dashboard/tasks", fetcher, { refreshInterval: 10000 });
+  const { data: tasksData } = useSWR<{ tasks: Task[] }>("/api/tasks", fetcher, { refreshInterval: 10000 });
+  const tasks = tasksData?.tasks ?? [];
 
-  const status = statusData?.state ?? "idle";
-  const style = STATUS_STYLES[status];
-
-  const byStatus = tasksData?.byStatus ?? {};
-  const normalizedByStatus = Object.entries(byStatus).reduce<Record<string, number>>((acc, [key, value]) => {
-    const normalizedKey = key === "Backlog" ? "Ideas" : key;
-    acc[normalizedKey] = (acc[normalizedKey] || 0) + value;
+  const byStatus = tasks.reduce<Record<string, number>>((acc, task) => {
+    acc[task.status] = (acc[task.status] || 0) + 1;
     return acc;
   }, {});
 
-  const statusEntries = [
-    ...TASK_STATUS_ORDER.filter((s) => s in normalizedByStatus).map((statusKey) => [statusKey, normalizedByStatus[statusKey]] as const),
-    ...Object.entries(normalizedByStatus).filter(([key]) => !TASK_STATUS_ORDER.includes(key)),
-  ];
+  const done = byStatus["完成"] || 0;
+  const total = tasks.length;
+  const completion = total === 0 ? 0 : Math.round((done / total) * 100);
+  const recentDone = tasks.filter((t) => t.status === "完成").slice(0, 6);
+  const todaySchedules = 2; // 內容類：Mimi + NotebookLM
+  const flowStages = 4; // Gate 1~4
 
   return (
-    <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp">
-      <h1 className="text-2xl md:text-3xl font-bold mb-6">📊 總覽</h1>
+    <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp text-white/95">
+      <h1 className="text-xl font-bold mb-4">📊 分析</h1>
 
-      <section className="mb-6">
-        <div className={`glass-card rounded-2xl p-6 border ${style.bg}`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm text-white/60 mb-2">Agent 狀態</h2>
-              <div className="flex items-center gap-3">
-                <div className={`w-3.5 h-3.5 rounded-full ${style.dot}`} />
-                <span className={`text-2xl font-bold ${style.text}`}>{style.label}</span>
-              </div>
+      <section className="mb-6 glass-card rounded-2xl p-4 md:p-5">
+        <h2 className="text-xl font-bold mb-4">任務統計</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {STATUS_ORDER.filter((status) => byStatus[status] !== undefined).map((status) => (
+            <div key={status} className="glass-card rounded-xl p-3 border border-white/10">
+              <p className="text-xs text-white/75">{status}</p>
+              <p className="text-2xl font-bold mt-1">{byStatus[status]}</p>
             </div>
-            {statusData?.activeAgent && (
-              <div className="text-right">
-                <div className="text-xs text-white/60 mb-1">活躍 Agent</div>
-                <div className="text-lg font-semibold">{statusData.activeAgent}</div>
-              </div>
-            )}
+          ))}
+          <div className="glass-card rounded-xl p-3 border border-white/10">
+            <p className="text-xs text-white/75">總任務</p>
+            <p className="text-2xl font-bold mt-1">{total}</p>
           </div>
-          {statusData?.lastUpdate && (
-            <div className="mt-4 text-xs text-white/55">最後更新：{new Date(statusData.lastUpdate).toLocaleString("zh-TW")}</div>
-          )}
         </div>
       </section>
 
-      <section>
-        <h2 className="text-lg font-semibold mb-4">任務概況</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="glass-card rounded-xl p-4">
-            {tasksData ? <div className="text-3xl font-bold text-[#667eea]">{tasksData.total}</div> : <div className="h-8 rounded skeleton-glass" />}
-            <div className="text-sm text-white/60 mt-1">總任務數</div>
+      <section className="mb-6 glass-card rounded-2xl p-4 md:p-5">
+        <h2 className="text-xl font-bold mb-4">完成率</h2>
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <CompletionRing percent={completion} />
+          <div className="space-y-2 text-sm text-white/80">
+            <p>✅ 已完成：{done}</p>
+            <p>📋 全部任務：{total}</p>
+            <p>🚧 未完成：{Math.max(total - done, 0)}</p>
           </div>
-          {tasksData ? statusEntries.map(([statusKey, count], idx) => (
-            <div key={statusKey} className="glass-card rounded-xl p-4 stagger-item" style={{ ["--stagger" as string]: `${idx * 65}ms` }}>
-              <div className="text-2xl font-bold text-white/90">{count}</div>
-              <div className="text-xs text-white/60 mt-1">{statusKey}</div>
-            </div>
-          )) : [0,1,2].map((i) => <div key={i} className="glass-card rounded-xl p-4"><div className="h-6 rounded skeleton-glass mb-2"/><div className="h-4 rounded skeleton-glass"/></div>)}
         </div>
-        {tasksData && tasksData.total === 0 && <div className="mt-4 glass-card rounded-xl p-5 text-center text-white/65">🫧 還沒有任務，先新增一個小目標吧！</div>}
+      </section>
+
+      <section className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link href="/schedule" className="glass-card rounded-2xl p-4 border border-white/10">
+          <h3 className="text-xl font-bold">🗓️ 排程摘要</h3>
+          <p className="text-sm text-white/75 mt-2">今日內容排程：{todaySchedules} 項</p>
+          <p className="text-xs text-[#9ab0ff] mt-2">前往排程頁 →</p>
+        </Link>
+        <Link href="/flow" className="glass-card rounded-2xl p-4 border border-white/10">
+          <h3 className="text-xl font-bold">🔄 流程摘要</h3>
+          <p className="text-sm text-white/75 mt-2">Mimi Gate 流程：{flowStages} 階段</p>
+          <p className="text-xs text-[#9ab0ff] mt-2">前往流程頁 →</p>
+        </Link>
+      </section>
+
+      <section className="glass-card rounded-2xl p-4 md:p-5">
+        <h2 className="text-xl font-bold mb-3">最近完成任務</h2>
+        <div className="space-y-2">
+          {recentDone.length === 0 ? (
+            <div className="text-sm text-white/70">尚無已完成任務</div>
+          ) : (
+            recentDone.map((task) => (
+              <div key={task.id} className="rounded-xl border border-white/10 p-3 text-sm text-white/90 bg-white/5">
+                ✅ {task.title}
+              </div>
+            ))
+          )}
+        </div>
       </section>
     </main>
   );

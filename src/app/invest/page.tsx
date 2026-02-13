@@ -76,7 +76,7 @@ export default function InvestPage() {
 
   return (
     <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
-      <h1 className="text-2xl md:text-3xl font-bold mb-6">📈 投資</h1>
+      <h1 className="text-xl font-bold mb-6">📈 投資</h1>
 
       <section className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         {[

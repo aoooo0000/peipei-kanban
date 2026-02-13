@@ -190,7 +190,7 @@ export default function SchedulePage() {
 
   return (
     <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
-      <h1 className="text-2xl md:text-3xl font-bold mb-4">🗓️ 排程</h1>
+      <h1 className="text-xl font-bold mb-4">🗓️ 排程</h1>
 
       <div className="flex flex-wrap gap-2 mb-5">
         {[
