@@ -183,7 +183,7 @@ function ArchitectureDiagram() {
       </div>
 
       {/* Connection Legend */}
-      <div className="rounded-xl border border-white/10 bg-[#202033] p-4">
+      <div className="rounded-xl border border-white/10 glass-card p-4">
         <h3 className="text-sm font-semibold text-zinc-400 mb-3">連線關係</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           {CONNECTIONS.map((conn) => (
@@ -239,7 +239,7 @@ function ConnectionArrow({ label, bidirectional }: { label: string; bidirectiona
     <div className="flex flex-col items-center gap-0.5 py-1">
       {bidirectional && <span className="text-zinc-500 text-xs">▲</span>}
       <div className="w-px h-6 bg-gradient-to-b from-zinc-500 to-zinc-600" />
-      <span className="text-[10px] text-zinc-400 bg-[#1a1a2e] px-2">{label}</span>
+      <span className="text-[10px] text-zinc-400 bg-transparent px-2">{label}</span>
       <div className="w-px h-6 bg-gradient-to-b from-zinc-600 to-zinc-500" />
       <span className="text-zinc-500 text-xs">▼</span>
     </div>
@@ -329,7 +329,7 @@ export default function FlowPage() {
   const [tab, setTab] = useState<Tab>("architecture");
 
   return (
-    <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 p-4 md:p-6 pb-24">
+    <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24">
       <h1 className="text-2xl md:text-3xl font-bold mb-4">🔄 流程</h1>
 
       <div className="flex gap-2 mb-5">
@@ -343,7 +343,7 @@ export default function FlowPage() {
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               tab === key
                 ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                : "bg-[#2a2a3e] text-zinc-300 hover:bg-[#333350] border border-white/10"
+                : "glass-card text-zinc-300 hover:bg-[#333350] border border-white/10"
             }`}
           >
             {label}

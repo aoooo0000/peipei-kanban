@@ -214,7 +214,7 @@ export default function SchedulePage() {
   const todayIdx = getTodayDowIndex();
 
   return (
-    <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 p-4 md:p-6 pb-24">
+    <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24">
       <h1 className="text-2xl md:text-3xl font-bold mb-4">🗓️ 排程</h1>
 
       {/* Agent Filter */}
@@ -231,7 +231,7 @@ export default function SchedulePage() {
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               agentFilter === key
                 ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                : "bg-[#2a2a3e] text-zinc-300 hover:bg-[#333350] border border-white/10"
+                : "glass-card text-zinc-300 hover:bg-[#333350] border border-white/10"
             }`}
           >
             {emoji} {label}
@@ -240,7 +240,7 @@ export default function SchedulePage() {
       </div>
 
       {/* Weekly Schedule Grid */}
-      <section className="rounded-2xl border border-white/10 bg-[#202033] overflow-hidden">
+      <section className="rounded-2xl border border-white/10 glass-card overflow-hidden">
         {/* Header */}
         <div className="grid grid-cols-8 border-b border-white/10">
           <div className="p-3 text-xs text-zinc-500 font-medium">時間</div>
@@ -336,7 +336,7 @@ export default function SchedulePage() {
       {/* Detail Modal */}
       {selectedSlot && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setSelectedSlot(null)}>
-          <div className="w-full max-w-lg rounded-2xl bg-[#1f1f35] border border-white/10 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-lg rounded-2xl glass-card-strong border border-white/10 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className={`p-4 ${AGENT_META[selectedSlot.job.agentId]?.bg || "bg-zinc-800"} border-b border-white/10`}>
               <div className="flex items-center gap-3">

@@ -17,7 +17,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-Hant">
-      <body className="pb-16">
+      <body className="pb-16 text-white antialiased">
         <SessionProviderWrapper>
           {children}
           <BottomNav />

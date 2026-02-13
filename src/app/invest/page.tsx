@@ -74,20 +74,20 @@ export default function InvestPage() {
   const catalysts = catalystsData?.catalysts || [];
 
   return (
-    <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 p-4 md:p-6 pb-20">
+    <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24">
       <h1 className="text-2xl md:text-3xl font-bold mb-6">📈 投資</h1>
 
       {/* 持股概覽 */}
       <section className="mb-6">
         <h2 className="text-lg font-semibold mb-4">持股概覽</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10">
+          <div className="rounded-xl glass-card p-4 border border-white/10">
             <div className="text-xs text-zinc-400 mb-1">總市值</div>
             <div className="text-xl md:text-2xl font-bold font-mono">
               {summary ? formatCurrency(summary.totalMarketValue) : "..."}
             </div>
           </div>
-          <div className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10">
+          <div className="rounded-xl glass-card p-4 border border-white/10">
             <div className="text-xs text-zinc-400 mb-1">總盈虧</div>
             <div
               className={`text-xl md:text-2xl font-bold font-mono ${
@@ -97,7 +97,7 @@ export default function InvestPage() {
               {summary ? formatCurrency(summary.totalGainLoss) : "..."}
             </div>
           </div>
-          <div className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10">
+          <div className="rounded-xl glass-card p-4 border border-white/10">
             <div className="text-xs text-zinc-400 mb-1">報酬率</div>
             <div
               className={`text-xl md:text-2xl font-bold font-mono ${
@@ -107,7 +107,7 @@ export default function InvestPage() {
               {summary ? formatPercent(summary.totalGainLossPercent) : "..."}
             </div>
           </div>
-          <div className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10">
+          <div className="rounded-xl glass-card p-4 border border-white/10">
             <div className="text-xs text-zinc-400 mb-1">持股數</div>
             <div className="text-xl md:text-2xl font-bold font-mono">
               {summary?.holdingsCount || 0}
@@ -128,7 +128,7 @@ export default function InvestPage() {
             holdings.map((h) => (
               <div
                 key={h.symbol}
-                className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10"
+                className="rounded-xl glass-card p-4 border border-white/10"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -173,7 +173,7 @@ export default function InvestPage() {
             watchlist.map((item) => (
               <div
                 key={item.symbol}
-                className={`rounded-xl bg-[#2a2a3e] p-4 border ${
+                className={`rounded-xl glass-card p-4 border ${
                   item.nearBuyPoint ? "border-green-400/50 bg-green-500/5" : "border-white/10"
                 }`}
               >
@@ -219,7 +219,7 @@ export default function InvestPage() {
             </div>
           ) : (
             catalysts.map((event, idx) => (
-              <div key={idx} className="rounded-xl bg-[#2a2a3e] p-4 border border-white/10">
+              <div key={idx} className="rounded-xl glass-card p-4 border border-white/10">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="font-bold">{event.symbol}</h3>
