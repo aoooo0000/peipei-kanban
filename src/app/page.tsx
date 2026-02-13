@@ -4,8 +4,9 @@ import Link from "next/link";
 import useSWR from "swr";
 import KanbanBoard from "@/components/KanbanBoard";
 import { CRON_JOBS } from "@/lib/cronJobs";
+import { fetchJSON } from "@/lib/api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
 const STATUS_META = {
   idle: { label: "idle", cls: "status-glow-idle" },
@@ -39,9 +40,9 @@ interface Reminder {
 const QUICK_ACTIONS = [
   { href: "/", emoji: "📝", label: "新增任務" },
   { href: "/invest", emoji: "📊", label: "查持倉" },
-  { href: "/schedule", emoji: "📅", label: "看排程" },
-  { href: "/logs", emoji: "📋", label: "活動記錄" },
-];
+  { href: "/settings", emoji: "⚙️", label: "設定" },
+  { action: "search", emoji: "🔍", label: "搜尋" },
+] as const;
 
 function countTodayJobs() {
   const dow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Taipei" })).getDay();
@@ -69,20 +70,27 @@ function formatLastActive(iso: string) {
 }
 
 export default function Home() {
-  const { data: tasksData } = useSWR<{ tasks: Array<{ status: string }> }>("/api/tasks", fetcher, { refreshInterval: 15000 });
-  const { data: logsData } = useSWR<{ logs: Array<{ id: string; title: string; timestamp: string; type: string }> }>("/api/logs", fetcher, { refreshInterval: 10000 });
-  const { data: holdingsData } = useSWR<{ summary: { totalGainLossPercent: number } }>("/api/invest/holdings", fetcher, { refreshInterval: 60000 });
-  const { data: statusData } = useSWR<StatusResponse>("/api/status", fetcher, { refreshInterval: 10000 });
-  const { data: remindersData } = useSWR<Reminder[]>("/api/reminders", fetcher, { refreshInterval: 30000 });
+  const { data: tasksData, error: tasksError, mutate: retryTasks } = useSWR<{ tasks: Array<{ status: string }> }>("/api/tasks", fetcher, { refreshInterval: 15000 });
+  const { data: logsData, error: logsError } = useSWR<{ logs: Array<{ id: string; title: string; timestamp: string; type: string }> }>("/api/logs", fetcher, { refreshInterval: 10000 });
+  const { data: holdingsData, error: holdingsError } = useSWR<{ summary: { totalGainLossPercent: number } }>("/api/invest/holdings", fetcher, { refreshInterval: 60000 });
+  const { data: statusData, error: statusError } = useSWR<StatusResponse>("/api/status", fetcher, { refreshInterval: 10000 });
+  const { data: remindersData, error: remindersError } = useSWR<Reminder[]>("/api/reminders", fetcher, { refreshInterval: 30000 });
 
   const todoCount = (tasksData?.tasks ?? []).filter((t) => t.status !== "完成").length;
   const todayScheduleCount = countTodayJobs();
   const pnl = holdingsData?.summary?.totalGainLossPercent;
   const recentLogs = (logsData?.logs ?? []).slice(0, 5);
   const reminders = remindersData ?? [];
+  const hasError = tasksError || logsError || holdingsError || statusError || remindersError;
 
   return (
     <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp text-white/95">
+      {hasError && (
+        <section className="mb-4 rounded-xl border border-red-400/35 bg-red-500/15 p-4 glass-card">
+          <p className="text-sm text-red-100">部分資料載入失敗，請稍後重試。</p>
+          <button onClick={() => retryTasks()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs hover:bg-red-500/50">重試</button>
+        </section>
+      )}
       <section className="mb-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-xl font-bold">Agent 狀態</h2>
@@ -121,17 +129,34 @@ export default function Home() {
       <section className="mb-6">
         <h2 className="text-xl font-bold mb-3">快捷操作</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {QUICK_ACTIONS.map((action, idx) => (
-            <Link
-              key={action.href + action.label}
-              href={action.href}
-              className="glass-card rounded-2xl p-3.5 flex items-center gap-2.5 border border-white/10 hover:border-[#667eea]/45 transition-all stagger-item"
-              style={{ ["--stagger" as string]: `${idx * 80}ms` }}
-            >
-              <span className="text-xl">{action.emoji}</span>
-              <span className="text-sm font-medium text-white/95 truncate">{action.label}</span>
-            </Link>
-          ))}
+          {QUICK_ACTIONS.map((action, idx) => {
+            const className = "glass-card rounded-2xl p-3.5 flex items-center gap-2.5 border border-white/10 hover:border-[#667eea]/45 transition-all stagger-item";
+            if ("href" in action) {
+              return (
+                <Link
+                  key={action.href + action.label}
+                  href={action.href}
+                  className={className}
+                  style={{ ["--stagger" as string]: `${idx * 80}ms` }}
+                >
+                  <span className="text-xl">{action.emoji}</span>
+                  <span className="text-sm font-medium text-white/95 truncate">{action.label}</span>
+                </Link>
+              );
+            }
+
+            return (
+              <button
+                key={action.label}
+                onClick={() => window.dispatchEvent(new Event("open-search-palette"))}
+                className={className}
+                style={{ ["--stagger" as string]: `${idx * 80}ms` }}
+              >
+                <span className="text-xl">{action.emoji}</span>
+                <span className="text-sm font-medium text-white/95 truncate">{action.label}</span>
+              </button>
+            );
+          })}
         </div>
       </section>
 

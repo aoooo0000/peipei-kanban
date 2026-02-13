@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import useSWR from "swr";
+import { fetchJSON } from "@/lib/api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 const STATUS_ORDER = ["Ideas", "To-do", "進行中", "Review", "完成", "未分類"];
 
 interface Task {
@@ -45,7 +46,7 @@ function buildLast7Days(doneCount: number) {
 }
 
 export default function DashboardPage() {
-  const { data: tasksData } = useSWR<{ tasks: Task[] }>("/api/tasks", fetcher, { refreshInterval: 10000 });
+  const { data: tasksData, error, mutate } = useSWR<{ tasks: Task[] }>("/api/tasks", fetcher, { refreshInterval: 10000 });
   const tasks = tasksData?.tasks ?? [];
 
   const byStatus = tasks.reduce<Record<string, number>>((acc, task) => {
@@ -71,6 +72,13 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp text-white/95">
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/15 p-4">
+          <p className="text-sm text-red-100">分析資料載入失敗。</p>
+          <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs">重試</button>
+        </div>
+      )}
+      {!tasksData && !error && <div className="mb-4 h-20 rounded-2xl skeleton-glass" />}
       <h1 className="text-xl font-bold mb-4">📊 分析</h1>
 
       <section className="mb-6 glass-card rounded-2xl p-4 md:p-5">

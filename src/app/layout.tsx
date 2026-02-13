@@ -3,6 +3,7 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import PullToRefresh from "@/components/PullToRefresh";
+import GlobalHotkeys from "@/components/GlobalHotkeys";
 
 export const metadata: Metadata = {
   title: "🐷 霈霈豬儀表板",
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1a1a2e",
+  themeColor: "#1a2332",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PullToRefresh>
             {children}
             <BottomNav />
+            <GlobalHotkeys />
           </PullToRefresh>
         </SessionProviderWrapper>
       </body>

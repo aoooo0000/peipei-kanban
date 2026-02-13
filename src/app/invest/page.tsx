@@ -1,8 +1,9 @@
 "use client";
 
 import useSWR from "swr";
+import { fetchJSON } from "@/lib/api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
 interface HoldingSummary {
   totalMarketValue: number;
@@ -54,17 +55,17 @@ function formatPercent(value: number): string {
 }
 
 export default function InvestPage() {
-  const { data: holdingsData } = useSWR<{ summary: HoldingSummary; holdings: Holding[] }>(
+  const { data: holdingsData, error: holdingsError, mutate: retryHoldings } = useSWR<{ summary: HoldingSummary; holdings: Holding[] }>(
     "/api/invest/holdings",
     fetcher,
     { refreshInterval: 60000 }
   );
-  const { data: watchlistData } = useSWR<{ watchlist: WatchlistItem[] }>(
+  const { data: watchlistData, error: watchlistError } = useSWR<{ watchlist: WatchlistItem[] }>(
     "/api/invest/watchlist",
     fetcher,
     { refreshInterval: 60000 }
   );
-  const { data: catalystsData } = useSWR<{ catalysts: CatalystEvent[] }>(
+  const { data: catalystsData, error: catalystsError } = useSWR<{ catalysts: CatalystEvent[] }>(
     "/api/invest/catalysts",
     fetcher
   );
@@ -73,9 +74,16 @@ export default function InvestPage() {
   const holdings = holdingsData?.holdings || [];
   const watchlist = watchlistData?.watchlist || [];
   const catalysts = catalystsData?.catalysts || [];
+  const hasError = holdingsError || watchlistError || catalystsError;
 
   return (
     <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
+      {hasError && (
+        <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/15 p-4">
+          <p className="text-sm text-red-100">投資資料載入失敗，請稍後重試。</p>
+          <button onClick={() => retryHoldings()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs">重試</button>
+        </div>
+      )}
       <h1 className="text-xl font-bold mb-6">📈 投資</h1>
 
       <section className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">

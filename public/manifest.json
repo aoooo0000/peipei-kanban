@@ -1,11 +1,11 @@
 {
-  "name": "霈霈看板",
+  "name": "霈霈豬看板",
   "short_name": "霈霈看板",
   "description": "AI Agent 儀表板 — 任務管理、狀態追蹤、文件瀏覽",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
+  "background_color": "#0d1420",
+  "theme_color": "#1a2332",
   "orientation": "any",
   "icons": [
     {

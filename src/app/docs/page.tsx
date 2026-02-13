@@ -5,8 +5,9 @@ import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import TextSelectionToolbar from "@/components/TextSelectionToolbar";
+import { fetchJSON, fetchWithTimeout } from "@/lib/api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
 interface Doc {
   name: string;
@@ -29,22 +30,28 @@ interface SearchResult {
 }
 
 export default function DocsPage() {
-  const { data } = useSWR<{ docs: Doc[] }>("/api/docs", fetcher);
+  const { data, error, mutate } = useSWR<{ docs: Doc[] }>("/api/docs", fetcher);
   const [selectedDoc, setSelectedDoc] = useState<Doc | null>(null);
   const [docContent, setDocContent] = useState<string>("");
   const [filter, setFilter] = useState<"all" | "System" | "Docs">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   const docs = data?.docs ?? [];
   const filteredDocs = filter === "all" ? docs : docs.filter((d) => d.category === filter);
 
   const loadDoc = async (doc: Doc) => {
     setSelectedDoc(doc);
-    const res = await fetch(`/api/docs/${encodeURIComponent(doc.path)}`);
-    const text = await res.text();
-    setDocContent(text);
+    setPageError(null);
+    try {
+      const res = await fetchWithTimeout(`/api/docs/${encodeURIComponent(doc.path)}`, {}, 9000);
+      const text = await res.text();
+      setDocContent(text);
+    } catch (e) {
+      setPageError(e instanceof Error ? e.message : "讀取文件失敗");
+    }
   };
 
   const handleSearch = async () => {
@@ -55,11 +62,10 @@ export default function DocsPage() {
 
     setSearching(true);
     try {
-      const res = await fetch(`/api/docs/search?q=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
+      const data = await fetchJSON<{ results: SearchResult[] }>(`/api/docs/search?q=${encodeURIComponent(searchQuery)}`, 9000);
       setSearchResults(data.results || []);
     } catch (error) {
-      console.error("Search error:", error);
+      setPageError(error instanceof Error ? error.message : "搜尋失敗");
       setSearchResults([]);
     } finally {
       setSearching(false);
@@ -67,12 +73,17 @@ export default function DocsPage() {
   };
 
   const loadDocByPath = async (docPath: string) => {
-    const res = await fetch(`/api/docs/${encodeURIComponent(docPath)}`);
-    const text = await res.text();
-    setDocContent(text);
-    setSelectedDoc({ name: docPath.split("/").pop() || docPath, path: docPath, category: "Docs", size: 0, modified: "" });
-    setSearchQuery("");
-    setSearchResults([]);
+    setPageError(null);
+    try {
+      const res = await fetchWithTimeout(`/api/docs/${encodeURIComponent(docPath)}`, {}, 9000);
+      const text = await res.text();
+      setDocContent(text);
+      setSelectedDoc({ name: docPath.split("/").pop() || docPath, path: docPath, category: "Docs", size: 0, modified: "" });
+      setSearchQuery("");
+      setSearchResults([]);
+    } catch (e) {
+      setPageError(e instanceof Error ? e.message : "讀取文件失敗");
+    }
   };
 
   const highlightMatch = (text: string, query: string) => {
@@ -93,6 +104,12 @@ export default function DocsPage() {
   return (
     <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
       <TextSelectionToolbar />
+      {(error || pageError) && (
+        <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/15 p-4">
+          <p className="text-sm text-red-100">{pageError || "文件資料載入失敗"}</p>
+          <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs">重試</button>
+        </div>
+      )}
       <h1 className="text-xl font-bold mb-6">📄 文件</h1>
 
       {!selectedDoc ? (

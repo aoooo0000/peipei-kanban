@@ -2,8 +2,9 @@
 
 import useSWR from "swr";
 import { useMemo, useState } from "react";
+import { fetchJSON } from "@/lib/api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
 type LogType = "agent" | "task" | "system";
 
@@ -23,7 +24,7 @@ const TYPE_META: Record<LogType | "all", { label: string; color: string; soft: s
 };
 
 export default function LogsPage() {
-  const { data } = useSWR<{ logs: LogEntry[] }>("/api/logs", fetcher, { refreshInterval: 10000 });
+  const { data, error, mutate } = useSWR<{ logs: LogEntry[] }>("/api/logs", fetcher, { refreshInterval: 10000 });
   const [filter, setFilter] = useState<"all" | LogType>("all");
 
   const filteredLogs = useMemo(() => {
@@ -33,6 +34,12 @@ export default function LogsPage() {
 
   return (
     <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp">
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/15 p-4">
+          <p className="text-sm text-red-100">活動紀錄載入失敗。</p>
+          <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs">重試</button>
+        </div>
+      )}
       <h1 className="text-xl font-bold mb-5">📋 Activity Log</h1>
 
       <div className="mb-6 flex flex-wrap gap-2">

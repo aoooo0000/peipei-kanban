@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { CRON_JOBS, type CronJobDef } from "@/lib/cronJobs";
+import { fetchJSON } from "@/lib/api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
 type AgentFilter = "all" | "main" | "trading-lab" | "coder";
 
@@ -149,7 +150,7 @@ function getExecutionStatus(slot: ScheduleSlot): { status: "ok" | "error" | "pen
 }
 
 export default function SchedulePage() {
-  const { data } = useSWR<{ jobs: CronJob[] }>("/api/cron/jobs", fetcher, { refreshInterval: 30000 });
+  const { data, error, mutate } = useSWR<{ jobs: CronJob[] }>("/api/cron/jobs", fetcher, { refreshInterval: 30000 });
   const [agentFilter, setAgentFilter] = useState<AgentFilter>("all");
   const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
 
@@ -190,6 +191,12 @@ export default function SchedulePage() {
 
   return (
     <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/15 p-4">
+          <p className="text-sm text-red-100">排程資料載入失敗。</p>
+          <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs">重試</button>
+        </div>
+      )}
       <h1 className="text-xl font-bold mb-4">🗓️ 排程</h1>
 
       <div className="flex flex-wrap gap-2 mb-5">

@@ -3,8 +3,9 @@
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Assignee, Priority, Task, TaskStatus } from "@/lib/notion";
+import { fetchJSON, mutationRequest } from "@/lib/api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 const STATUSES: TaskStatus[] = ["Ideas", "To-do", "進行中", "Review", "完成"];
 const STATUS_META: Record<TaskStatus, { emoji: string; label: string; dot: string }> = {
   Ideas: { emoji: "💡", label: "Ideas", dot: "status-glow-thinking" },
@@ -168,7 +169,7 @@ function TaskDetailDrawer({ task, onClose, onUpdate }: { task: Task; onClose: ()
     setSubmitting(true);
     try {
       const newNote = task.note ? `${task.note}\n\n---\n${replyText}` : replyText;
-      await fetch(`/api/tasks/${task.id}`, {
+      await mutationRequest(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ note: newNote }),
@@ -273,7 +274,7 @@ function TaskForm({ initial, onSubmit, onClose }: { initial?: Partial<Task>; onS
 }
 
 export default function KanbanBoard() {
-  const { data, mutate } = useSWR<{ tasks: Task[] }>("/api/tasks", fetcher, { refreshInterval: 15000 });
+  const { data, error, mutate } = useSWR<{ tasks: Task[] }>("/api/tasks", fetcher, { refreshInterval: 15000 });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [addingStatus, setAddingStatus] = useState<TaskStatus | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
@@ -283,6 +284,7 @@ export default function KanbanBoard() {
   });
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
+  const [opError, setOpError] = useState<string | null>(null);
   const [accordionOpen, setAccordionOpen] = useState<Record<TaskStatus, boolean>>({
     Ideas: false,
     "To-do": false,
@@ -339,26 +341,46 @@ export default function KanbanBoard() {
   }, []);
 
   const moveTask = async (id: string, status: TaskStatus) => {
-    await fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
-    mutate();
+    try {
+      setOpError(null);
+      await mutationRequest(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+      mutate();
+    } catch (e) {
+      setOpError(e instanceof Error ? e.message : "更新任務失敗");
+    }
   };
 
   const createTask = async (status: TaskStatus, input: Partial<Task>) => {
-    await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, status }) });
-    setAddingStatus(null);
-    mutate();
+    try {
+      setOpError(null);
+      await mutationRequest("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, status }) });
+      setAddingStatus(null);
+      mutate();
+    } catch (e) {
+      setOpError(e instanceof Error ? e.message : "新增任務失敗");
+    }
   };
 
   const updateTask = async (id: string, input: Partial<Task>) => {
-    await fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-    setEditingTask(null);
-    mutate();
+    try {
+      setOpError(null);
+      await mutationRequest(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      setEditingTask(null);
+      mutate();
+    } catch (e) {
+      setOpError(e instanceof Error ? e.message : "更新任務失敗");
+    }
   };
 
   const deleteTask = async (id: string) => {
     if (!confirm("確定要刪除這個任務？")) return;
-    await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-    mutate();
+    try {
+      setOpError(null);
+      await mutationRequest(`/api/tasks/${id}`, { method: "DELETE" });
+      mutate();
+    } catch (e) {
+      setOpError(e instanceof Error ? e.message : "刪除任務失敗");
+    }
   };
 
   const boardLayoutClass = screenMode === "small"
@@ -370,6 +392,13 @@ export default function KanbanBoard() {
   return (
     <>
       <h1 className="text-xl font-bold mb-4 md:mb-6">🐷 霈霈豬任務看板</h1>
+      {(error || opError) && (
+        <div className="mb-3 rounded-xl border border-red-400/40 bg-red-500/15 p-3">
+          <p className="text-sm text-red-100">{opError || "任務資料載入失敗"}</p>
+          <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-2 py-1 text-xs">重試</button>
+        </div>
+      )}
+      {!data && !error && <div className="mb-4 h-24 rounded-2xl skeleton-glass" />}
       <div className={boardLayoutClass}>
         {STATUSES.map((status) => {
           const count = grouped[status]?.length ?? 0;
