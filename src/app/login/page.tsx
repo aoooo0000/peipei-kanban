@@ -12,7 +12,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 flex items-center justify-center p-6">
+    <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 flex items-center justify-center p-6 animate-fadeInUp">
       <div className="w-full max-w-md rounded-2xl border border-pink-200/20 bg-[#22223b] p-8 shadow-2xl shadow-pink-500/10">
         <p className="text-sm text-pink-200/80 mb-2">🐷 霈霈豬看板</p>
         <h1 className="text-2xl font-semibold mb-3">歡迎回來</h1>

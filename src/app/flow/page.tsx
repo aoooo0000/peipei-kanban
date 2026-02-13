@@ -4,7 +4,6 @@ import { useState } from "react";
 
 type Tab = "architecture" | "workflow";
 
-/* ─── Architecture Nodes ─── */
 interface AgentNode {
   key: string;
   emoji: string;
@@ -42,7 +41,6 @@ const CONNECTIONS: { from: string; to: string; label: string; bidirectional?: bo
   { from: "trading", to: "alpaca", label: "交易" },
 ];
 
-/* ─── Workflow Steps ─── */
 interface FlowStep {
   emoji: string;
   title: string;
@@ -53,7 +51,6 @@ interface FlowStep {
 interface WorkflowDef {
   title: string;
   emoji: string;
-  agentColor: string;
   gradientFrom: string;
   gradientTo: string;
   cardBg: string;
@@ -66,7 +63,6 @@ const WORKFLOWS: WorkflowDef[] = [
   {
     title: "MimiVsJames 整理",
     emoji: "📰",
-    agentColor: "indigo",
     gradientFrom: "from-indigo-500/20",
     gradientTo: "to-indigo-900/5",
     cardBg: "bg-indigo-500/10",
@@ -85,7 +81,6 @@ const WORKFLOWS: WorkflowDef[] = [
   {
     title: "Trading Lab 每日循環",
     emoji: "📈",
-    agentColor: "emerald",
     gradientFrom: "from-emerald-500/20",
     gradientTo: "to-emerald-900/5",
     cardBg: "bg-emerald-500/10",
@@ -103,7 +98,6 @@ const WORKFLOWS: WorkflowDef[] = [
   {
     title: "霈霈豬每日循環",
     emoji: "🐷",
-    agentColor: "purple",
     gradientFrom: "from-purple-500/20",
     gradientTo: "to-purple-900/5",
     cardBg: "bg-purple-500/10",
@@ -120,17 +114,12 @@ const WORKFLOWS: WorkflowDef[] = [
   },
 ];
 
-/* ─── Role styling ─── */
 function nodeStyle(role: string) {
   switch (role) {
-    case "user":
-      return "border-amber-400/60 bg-amber-500/10 shadow-amber-500/10";
-    case "core":
-      return "border-purple-400/70 bg-purple-500/15 shadow-purple-500/20 ring-1 ring-purple-400/30";
-    case "agent":
-      return "border-blue-400/50 bg-blue-500/10 shadow-blue-500/10";
-    default:
-      return "border-zinc-500/40 bg-zinc-500/5 shadow-zinc-500/5";
+    case "user": return "border-amber-400/60 bg-amber-500/10 shadow-amber-500/10";
+    case "core": return "border-purple-400/70 bg-purple-500/15 shadow-purple-500/20 ring-1 ring-purple-400/30";
+    case "agent": return "border-blue-400/50 bg-blue-500/10 shadow-blue-500/10";
+    default: return "border-zinc-500/40 bg-zinc-500/5 shadow-zinc-500/5";
   }
 }
 
@@ -143,163 +132,67 @@ function roleBadge(role: string) {
   }
 }
 
-/* ─── Architecture Diagram (Responsive) ─── */
 function ArchitectureDiagram() {
   return (
     <div className="space-y-6">
-      {/* Andy → 霈霈豬 */}
-      <div className="flex flex-col items-center gap-2">
-        <NodeCard node={USER} size="md" />
-        <ConnectionArrow label="直接對話" bidirectional />
-        <NodeCard node={CORE} size="lg" />
-      </div>
-
-      {/* Agents row */}
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex items-center gap-2 text-zinc-500">
-          <div className="h-px w-8 bg-zinc-600" />
-          <span className="text-xs">派發任務</span>
-          <div className="h-px w-8 bg-zinc-600" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-3xl">
-          {AGENTS.map((agent) => (
-            <NodeCard key={agent.key} node={agent} size="md" />
-          ))}
-        </div>
-      </div>
-
-      {/* Services row */}
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex items-center gap-2 text-zinc-500">
-          <div className="h-px w-8 bg-zinc-600" />
-          <span className="text-xs">外部服務</span>
-          <div className="h-px w-8 bg-zinc-600" />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">
-          {SERVICES.map((svc) => (
-            <NodeCard key={svc.key} node={svc} size="sm" />
-          ))}
-        </div>
-      </div>
-
-      {/* Connection Legend */}
-      <div className="rounded-xl border border-white/10 glass-card p-4">
-        <h3 className="text-sm font-semibold text-zinc-400 mb-3">連線關係</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-          {CONNECTIONS.map((conn) => (
-            <div key={`${conn.from}-${conn.to}`} className="flex items-center gap-2 text-zinc-300">
-              <span className="text-zinc-500">{conn.from === "andy" ? "👤" : conn.from === "main" ? "🐷" : conn.from === "trading" ? "📈" : "💻"}</span>
-              <span className="text-zinc-500">{conn.bidirectional ? "↔" : "→"}</span>
-              <span className="text-zinc-500">{conn.to === "main" ? "🐷" : conn.to === "trading" ? "📈" : conn.to === "coder" ? "💻" : conn.to === "research" ? "🔬" : conn.to === "notion" ? "📝" : conn.to === "gmail" ? "📧" : conn.to === "browser" ? "🌐" : "📊"}</span>
-              <span className="text-zinc-400 ml-1">{conn.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <div className="flex flex-col items-center gap-2"><NodeCard node={USER} size="md" /><ConnectionArrow label="直接對話" bidirectional /><NodeCard node={CORE} size="lg" /></div>
+      <div className="flex flex-col items-center gap-2"><div className="flex items-center gap-2 text-zinc-500"><div className="h-px w-8 bg-zinc-600" /><span className="text-xs">派發任務</span><div className="h-px w-8 bg-zinc-600" /></div><div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-3xl">{AGENTS.map((agent) => <NodeCard key={agent.key} node={agent} size="md" />)}</div></div>
+      <div className="flex flex-col items-center gap-2"><div className="flex items-center gap-2 text-zinc-500"><div className="h-px w-8 bg-zinc-600" /><span className="text-xs">外部服務</span><div className="h-px w-8 bg-zinc-600" /></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">{SERVICES.map((svc) => <NodeCard key={svc.key} node={svc} size="sm" />)}</div></div>
+      <div className="rounded-xl border border-white/10 glass-card p-4"><h3 className="text-sm font-semibold text-zinc-400 mb-3">連線關係</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">{CONNECTIONS.map((conn) => <div key={`${conn.from}-${conn.to}`} className="flex items-center gap-2 text-zinc-300"><span className="text-zinc-500">{conn.from === "andy" ? "👤" : conn.from === "main" ? "🐷" : conn.from === "trading" ? "📈" : "💻"}</span><span className="text-zinc-500">{conn.bidirectional ? "↔" : "→"}</span><span className="text-zinc-500">{conn.to === "main" ? "🐷" : conn.to === "trading" ? "📈" : conn.to === "coder" ? "💻" : conn.to === "research" ? "🔬" : conn.to === "notion" ? "📝" : conn.to === "gmail" ? "📧" : conn.to === "browser" ? "🌐" : "📊"}</span><span className="text-zinc-400 ml-1">{conn.label}</span></div>)}</div></div>
     </div>
   );
 }
 
 function NodeCard({ node, size = "md" }: { node: AgentNode; size?: "sm" | "md" | "lg" }) {
   const badge = roleBadge(node.role);
-  const sizeClasses = {
-    sm: "p-3",
-    md: "p-4",
-    lg: "p-5 sm:p-6",
-  };
-  const emojiSize = {
-    sm: "text-xl",
-    md: "text-2xl",
-    lg: "text-3xl sm:text-4xl",
-  };
-  const titleSize = {
-    sm: "text-sm",
-    md: "text-base",
-    lg: "text-lg sm:text-xl",
-  };
-
+  const sizeClasses = { sm: "p-3", md: "p-4", lg: "p-5 sm:p-6" };
+  const emojiSize = { sm: "text-xl", md: "text-2xl", lg: "text-3xl sm:text-4xl" };
+  const titleSize = { sm: "text-sm", md: "text-base", lg: "text-lg sm:text-xl" };
   return (
-    <div className={`rounded-2xl border shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-xl ${nodeStyle(node.role)} ${sizeClasses[size]} ${size === "lg" ? "w-full max-w-xs mx-auto" : ""}`}>
-      <div className="flex items-start gap-3">
-        <span className={emojiSize[size]}>{node.emoji}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className={`font-bold ${titleSize[size]}`}>{node.title}</h3>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">{node.desc}</p>
-        </div>
-      </div>
+    <div className={`rounded-2xl border shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl ${nodeStyle(node.role)} ${sizeClasses[size]} ${size === "lg" ? "w-full max-w-xs mx-auto" : ""}`}>
+      <div className="flex items-start gap-3"><span className={emojiSize[size]}>{node.emoji}</span><div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><h3 className={`font-bold ${titleSize[size]}`}>{node.title}</h3><span className={`text-[10px] px-1.5 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span></div><p className="text-xs text-zinc-400 mt-1">{node.desc}</p></div></div>
     </div>
   );
 }
 
 function ConnectionArrow({ label, bidirectional }: { label: string; bidirectional?: boolean }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 py-1">
-      {bidirectional && <span className="text-zinc-500 text-xs">▲</span>}
-      <div className="w-px h-6 bg-gradient-to-b from-zinc-500 to-zinc-600" />
-      <span className="text-[10px] text-zinc-400 bg-transparent px-2">{label}</span>
-      <div className="w-px h-6 bg-gradient-to-b from-zinc-600 to-zinc-500" />
-      <span className="text-zinc-500 text-xs">▼</span>
-    </div>
-  );
+  return <div className="flex flex-col items-center gap-0.5 py-1">{bidirectional && <span className="text-zinc-500 text-xs">▲</span>}<div className="w-px h-6 bg-gradient-to-b from-zinc-500 to-zinc-600" /><span className="text-[10px] text-zinc-400 bg-transparent px-2">{label}</span><div className="w-px h-6 bg-gradient-to-b from-zinc-600 to-zinc-500" /><span className="text-zinc-500 text-xs">▼</span></div>;
 }
 
-/* ─── Workflow Timeline (Responsive) ─── */
 function WorkflowSection({ workflow }: { workflow: WorkflowDef }) {
   return (
-    <section className={`rounded-2xl border border-white/10 overflow-hidden bg-gradient-to-br ${workflow.gradientFrom} ${workflow.gradientTo}`}>
-      {/* Header */}
-      <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-white/10">
-        <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
-          <span className="text-xl">{workflow.emoji}</span>
-          {workflow.title}
-        </h2>
-      </div>
+    <section className={`group rounded-2xl border border-white/10 overflow-hidden bg-gradient-to-br ${workflow.gradientFrom} ${workflow.gradientTo}`}>
+      <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-white/10"><h2 className="text-base sm:text-lg font-bold flex items-center gap-2"><span className="text-xl">{workflow.emoji}</span>{workflow.title}</h2></div>
 
-      {/* Steps - vertical on mobile, horizontal wrap on desktop */}
       <div className="p-4 sm:p-5">
-        {/* Desktop: horizontal wrap */}
         <div className="hidden sm:flex flex-wrap gap-3 items-stretch">
           {workflow.steps.map((step, idx) => (
             <div key={step.title} className="flex items-center">
-              <StepCard step={step} workflow={workflow} />
+              <StepCard step={step} workflow={workflow} idx={idx + 1} />
               {idx < workflow.steps.length - 1 && (
-                <div className="flex-shrink-0 mx-1.5 text-zinc-500">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M6 10h8m0 0l-3-3m3 3l-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
+                <svg width="36" height="16" viewBox="0 0 36 16" className="mx-1.5 text-white/40 group-hover:text-white/70 transition-colors">
+                  <line x1="1" y1="8" x2="30" y2="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" style={{ animation: "dashFlow 1.2s linear infinite" }} />
+                  <path d="M30 8l-4-3m4 3l-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
               )}
             </div>
           ))}
         </div>
 
-        {/* Mobile: vertical timeline */}
         <div className="sm:hidden space-y-0">
           {workflow.steps.map((step, idx) => (
-            <div key={step.title}>
+            <div key={step.title} className="group/step">
               <div className="flex gap-3">
-                {/* Timeline line */}
                 <div className="flex flex-col items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${workflow.cardBg} ${workflow.cardBorder} border`}>
-                    {step.emoji}
-                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${workflow.cardBg} ${workflow.cardBorder} border`}>{idx + 1}</div>
                   {idx < workflow.steps.length - 1 && (
-                    <div className={`w-px flex-1 min-h-[16px] bg-gradient-to-b ${workflow.cardBorder.replace("border-", "from-").replace("/30", "/40")} to-transparent`} />
+                    <svg width="2" height="28" viewBox="0 0 2 28" className="text-white/40 group-hover:text-white/70">
+                      <line x1="1" y1="0" x2="1" y2="28" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" style={{ animation: "dashFlow 1.2s linear infinite" }} />
+                    </svg>
                   )}
                 </div>
-                {/* Content */}
                 <div className="flex-1 pb-4">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-semibold text-sm">{step.title}</h4>
-                    {step.time && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${workflow.cardBg} ${workflow.accentText}`}>
-                        {step.time}
-                      </span>
-                    )}
-                  </div>
+                  <div className="flex items-center gap-2 flex-wrap"><span className="text-lg">{step.emoji}</span><h4 className="font-semibold text-sm">{step.title}</h4>{step.time && <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${workflow.cardBg} ${workflow.accentText}`}>{step.time}</span>}</div>
                   <p className="text-xs text-zinc-400 mt-0.5">{step.desc}</p>
                 </div>
               </div>
@@ -311,55 +204,25 @@ function WorkflowSection({ workflow }: { workflow: WorkflowDef }) {
   );
 }
 
-function StepCard({ step, workflow }: { step: FlowStep; workflow: WorkflowDef }) {
+function StepCard({ step, workflow, idx }: { step: FlowStep; workflow: WorkflowDef; idx: number }) {
   return (
-    <div className={`rounded-xl border px-3 py-2.5 w-[140px] lg:w-[160px] transition-all duration-200 hover:scale-[1.03] hover:shadow-lg ${workflow.cardBg} ${workflow.cardBorder}`}>
-      <div className="text-lg mb-1">{step.emoji}</div>
+    <div className={`rounded-xl border px-3 py-2.5 w-[152px] lg:w-[166px] transition-all duration-200 hover:shadow-lg group-hover:brightness-110 ${workflow.cardBg} ${workflow.cardBorder}`}>
+      <div className="flex items-center justify-between mb-1"><span className="text-lg">{step.emoji}</span><span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/80">#{idx}</span></div>
       <h4 className="font-semibold text-sm leading-tight">{step.title}</h4>
       <p className="text-[11px] text-zinc-400 mt-1 leading-snug">{step.desc}</p>
-      {step.time && (
-        <div className={`mt-1.5 text-[10px] font-mono ${workflow.accentText}`}>{step.time}</div>
-      )}
+      {step.time && <div className={`mt-1.5 text-[10px] font-mono ${workflow.accentText}`}>{step.time}</div>}
     </div>
   );
 }
 
-/* ─── Page ─── */
 export default function FlowPage() {
   const [tab, setTab] = useState<Tab>("architecture");
 
   return (
-    <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24">
+    <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
       <h1 className="text-2xl md:text-3xl font-bold mb-4">🔄 流程</h1>
-
-      <div className="flex gap-2 mb-5">
-        {[
-          { key: "architecture" as Tab, label: "🏗️ 架構圖" },
-          { key: "workflow" as Tab, label: "⚡ 工作流程" },
-        ].map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              tab === key
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                : "glass-card text-zinc-300 hover:bg-[#333350] border border-white/10"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "architecture" ? (
-        <ArchitectureDiagram />
-      ) : (
-        <div className="space-y-6">
-          {WORKFLOWS.map((wf) => (
-            <WorkflowSection key={wf.title} workflow={wf} />
-          ))}
-        </div>
-      )}
+      <div className="flex gap-2 mb-5">{[{ key: "architecture" as Tab, label: "🏗️ 架構圖" }, { key: "workflow" as Tab, label: "⚡ 工作流程" }].map(({ key, label }, idx) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all stagger-item ${tab === key ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "glass-card text-zinc-300 hover:bg-[#333350] border border-white/10"}`} style={{ ["--stagger" as string]: `${idx * 70}ms` }}>{label}</button>)}</div>
+      {tab === "architecture" ? <ArchitectureDiagram /> : <div className="space-y-6">{WORKFLOWS.map((wf, i) => <div key={wf.title} className="stagger-item" style={{ ["--stagger" as string]: `${i * 90}ms` }}><WorkflowSection workflow={wf} /></div>)}</div>}
     </main>
   );
 }

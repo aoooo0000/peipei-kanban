@@ -91,7 +91,7 @@ export default function DocsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 p-4 md:p-6 pb-20">
+    <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 p-4 md:p-6 pb-20 animate-fadeInUp">
       <TextSelectionToolbar />
       <h1 className="text-2xl md:text-3xl font-bold mb-6">📄 文件</h1>
 

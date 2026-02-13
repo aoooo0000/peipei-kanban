@@ -23,12 +23,13 @@ export default function BottomNav() {
             <Link
               key={tab.path}
               href={tab.path}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+              className={`relative flex flex-col items-center justify-center flex-1 h-full transition-all ${
                 isActive ? "text-[#667eea] drop-shadow-[0_0_8px_rgba(102,126,234,0.65)]" : "text-white/60 hover:text-white/90"
               }`}
             >
               <span className="text-xl mb-1">{tab.icon}</span>
               <span className="text-[11px] font-medium">{tab.label}</span>
+              {isActive && <span className="absolute bottom-0 h-1.5 w-10 rounded-t-full bg-[#667eea] shadow-[0_0_14px_rgba(102,126,234,0.95)]" />}
             </Link>
           );
         })}

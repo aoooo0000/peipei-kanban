@@ -32,7 +32,7 @@ export default function LogsPage() {
   }, [filter, data?.logs]);
 
   return (
-    <main className="min-h-screen p-4 md:p-6 pb-24">
+    <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp">
       <h1 className="text-2xl md:text-3xl font-bold mb-5">📋 Activity Log</h1>
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -59,10 +59,16 @@ export default function LogsPage() {
 
         <div className="space-y-4">
           {filteredLogs.length === 0 ? (
-            <div className="glass-card rounded-2xl p-6 text-sm text-white/60">{data ? "目前沒有符合條件的紀錄" : "載入中..."}</div>
+            data ? (
+              <div className="glass-card rounded-2xl p-6 text-sm text-white/60">📭 目前沒有符合條件的紀錄</div>
+            ) : (
+              <div className="space-y-3">
+                {[0,1,2].map((i) => <div key={i} className="h-20 rounded-2xl skeleton-glass" />)}
+              </div>
+            )
           ) : (
-            filteredLogs.map((log) => (
-              <article key={log.id} className="relative pl-8">
+            filteredLogs.map((log, idx) => (
+              <article key={log.id} className="relative pl-8 stagger-item" style={{ ["--stagger" as string]: `${idx * 60}ms` }}>
                 <span className={`absolute left-0 top-4 h-4 w-4 rounded-full border ${TYPE_META[log.type].soft}`} />
                 <div className="glass-card rounded-2xl border border-white/10 p-4 md:p-5">
                   <div className="mb-2 flex items-center justify-between gap-3">

@@ -23,16 +23,17 @@ const QUICK_ACTIONS = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen p-4 md:p-6 pb-24">
+    <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp">
       <section className="mb-5">
         <h2 className="text-sm md:text-base font-semibold text-white/80 mb-3">Agent 狀態</h2>
         <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
-          {AGENTS.map((agent) => {
+          {AGENTS.map((agent, idx) => {
             const status = STATUS_META[agent.status];
             return (
               <div
                 key={agent.id}
-                className="glass-card rounded-2xl p-3.5 min-w-[220px] sm:min-w-[240px] snap-start"
+                className="glass-card rounded-2xl p-3.5 min-w-[220px] sm:min-w-[240px] snap-start stagger-item"
+                style={{ ["--stagger" as string]: `${idx * 70}ms` }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -57,11 +58,12 @@ export default function Home() {
       <section className="mb-6">
         <h2 className="text-sm md:text-base font-semibold text-white/80 mb-3">快捷操作</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {QUICK_ACTIONS.map((action) => (
+          {QUICK_ACTIONS.map((action, idx) => (
             <Link
               key={action.href + action.label}
               href={action.href}
-              className="glass-card rounded-2xl p-3.5 flex items-center gap-2.5 border border-white/10 hover:border-[#667eea]/45 hover:shadow-[0_0_24px_rgba(102,126,234,0.25)] transition-all"
+              className="glass-card rounded-2xl p-3.5 flex items-center gap-2.5 border border-white/10 hover:border-[#667eea]/45 hover:shadow-[0_0_24px_rgba(102,126,234,0.25)] transition-all stagger-item"
+              style={{ ["--stagger" as string]: `${idx * 80}ms` }}
             >
               <span className="text-xl">{action.emoji}</span>
               <span className="text-sm font-medium text-white/90">{action.label}</span>

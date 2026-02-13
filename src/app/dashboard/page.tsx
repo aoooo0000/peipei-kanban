@@ -43,7 +43,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <main className="min-h-screen p-4 md:p-6 pb-24">
+    <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp">
       <h1 className="text-2xl md:text-3xl font-bold mb-6">📊 總覽</h1>
 
       <section className="mb-6">
@@ -73,16 +73,17 @@ export default function DashboardPage() {
         <h2 className="text-lg font-semibold mb-4">任務概況</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="glass-card rounded-xl p-4">
-            <div className="text-3xl font-bold text-[#667eea]">{tasksData?.total ?? 0}</div>
+            {tasksData ? <div className="text-3xl font-bold text-[#667eea]">{tasksData.total}</div> : <div className="h-8 rounded skeleton-glass" />}
             <div className="text-sm text-white/60 mt-1">總任務數</div>
           </div>
-          {statusEntries.map(([statusKey, count]) => (
-            <div key={statusKey} className="glass-card rounded-xl p-4">
+          {tasksData ? statusEntries.map(([statusKey, count], idx) => (
+            <div key={statusKey} className="glass-card rounded-xl p-4 stagger-item" style={{ ["--stagger" as string]: `${idx * 65}ms` }}>
               <div className="text-2xl font-bold text-white/90">{count}</div>
               <div className="text-xs text-white/60 mt-1">{statusKey}</div>
             </div>
-          ))}
+          )) : [0,1,2].map((i) => <div key={i} className="glass-card rounded-xl p-4"><div className="h-6 rounded skeleton-glass mb-2"/><div className="h-4 rounded skeleton-glass"/></div>)}
         </div>
+        {tasksData && tasksData.total === 0 && <div className="mt-4 glass-card rounded-xl p-5 text-center text-white/65">🫧 還沒有任務，先新增一個小目標吧！</div>}
       </section>
     </main>
   );
