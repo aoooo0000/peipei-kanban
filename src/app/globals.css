@@ -17,6 +17,7 @@
 html,
 body {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -98,6 +99,25 @@ body::before {
 
 @keyframes dashFlow {
   to { stroke-dashoffset: -24; }
+}
+
+@keyframes particleDrift {
+  0%, 100% { background-position: 0% 0%, 30% 20%, 70% 80%; }
+  50% { background-position: 6% 4%, 36% 25%, 64% 74%; }
+}
+
+.login-particles::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at center, rgba(255,255,255,.18) 0 1px, transparent 1.2px),
+    radial-gradient(circle at center, rgba(102,126,234,.2) 0 1px, transparent 1.2px),
+    radial-gradient(circle at center, rgba(236,72,153,.18) 0 1px, transparent 1.2px);
+  background-size: 140px 140px, 180px 180px, 220px 220px;
+  opacity: .35;
+  animation: particleDrift 12s ease-in-out infinite;
 }
 
 .animate-fadeInUp {
