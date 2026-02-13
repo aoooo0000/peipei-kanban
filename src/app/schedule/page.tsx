@@ -3,8 +3,11 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import parser from "cron-parser";
+import { CRON_JOBS, type CronJobDef } from "@/lib/cronJobs";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+type CategoryFilter = "all" | "trading" | "content" | "monitoring";
 
 interface CronJob {
   id: string;
@@ -16,6 +19,8 @@ interface CronJob {
     expr: string;
     tz?: string;
   };
+  description?: string;
+  category?: CronJobDef["category"];
   payload?: Record<string, unknown>;
   state?: {
     nextRunAtMs?: number;
@@ -32,6 +37,18 @@ const AGENT_STYLES: Record<string, string> = {
   main: "bg-indigo-500/80 border-indigo-300",
   "trading-lab": "bg-emerald-500/80 border-emerald-300",
   coder: "bg-blue-500/80 border-blue-300",
+};
+
+const AGENT_EMOJI: Record<string, string> = {
+  main: "🐷",
+  "trading-lab": "📈",
+  coder: "💻",
+};
+
+const AGENT_LABEL: Record<string, string> = {
+  main: "Main / 霈霈豬",
+  "trading-lab": "Trading Lab",
+  coder: "Coder",
 };
 
 function startOfWeek(date: Date) {
@@ -55,8 +72,28 @@ function statusLamp(status?: string) {
   return `⚪ ${status}`;
 }
 
-function shortName(name: string) {
-  return name.length <= 6 ? name : `${name.slice(0, 6)}…`;
+function shortName(job: CronJob) {
+  const prefix = AGENT_EMOJI[job.agentId] ?? "⚙️";
+  const name = `${prefix} ${job.name}`;
+  return name.length <= 10 ? name : `${name.slice(0, 10)}…`;
+}
+
+function fallbackJobs(): CronJob[] {
+  return CRON_JOBS.map((job) => ({
+    id: job.id,
+    agentId: job.agentId,
+    name: job.name,
+    enabled: true,
+    schedule: {
+      kind: "cron",
+      expr: job.schedule,
+      tz: job.tz,
+    },
+    description: job.description,
+    category: job.category,
+    payload: {},
+    state: {},
+  }));
 }
 
 function getOccurrences(job: CronJob, rangeStart: Date, rangeEnd: Date) {
@@ -84,14 +121,17 @@ function getOccurrences(job: CronJob, rangeStart: Date, rangeEnd: Date) {
 export default function SchedulePage() {
   const { data } = useSWR<{ jobs: CronJob[] }>("/api/cron/jobs", fetcher, { refreshInterval: 10000 });
   const [mode, setMode] = useState<ViewMode>("week");
+  const [category, setCategory] = useState<CategoryFilter>("all");
   const [selected, setSelected] = useState<{ job: CronJob; time: Date } | null>(null);
 
-  const jobs = data?.jobs ?? [];
-  const now = new Date();
-  const weekStart = startOfWeek(now);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  weekEnd.setMilliseconds(-1);
+  const jobs = data?.jobs?.length ? data.jobs : fallbackJobs();
+  const filteredJobs = useMemo(() => {
+    if (category === "all") return jobs;
+    return jobs.filter((job) => job.category === category);
+  }, [jobs, category]);
+
+  const now = useMemo(() => new Date(), []);
+  const weekStart = useMemo(() => startOfWeek(now), [now]);
 
   const days = useMemo(() => {
     if (mode === "day") return [new Date(now.getFullYear(), now.getMonth(), now.getDate())];
@@ -102,26 +142,60 @@ export default function SchedulePage() {
     });
   }, [mode, now, weekStart]);
 
-  const rangeStart = mode === "day" ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0) : weekStart;
-  const rangeEnd = new Date(rangeStart);
-  rangeEnd.setDate(rangeEnd.getDate() + (mode === "day" ? 1 : 7));
-  rangeEnd.setMilliseconds(-1);
+  const rangeStart = useMemo(
+    () => (mode === "day" ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0) : weekStart),
+    [mode, now, weekStart]
+  );
+
+  const rangeEnd = useMemo(() => {
+    const end = new Date(rangeStart);
+    end.setDate(end.getDate() + (mode === "day" ? 1 : 7));
+    end.setMilliseconds(-1);
+    return end;
+  }, [rangeStart, mode]);
 
   const events = useMemo(() => {
-    return jobs.flatMap((job) =>
+    return filteredJobs.flatMap((job) =>
       getOccurrences(job, rangeStart, rangeEnd).map((time) => ({ job, time }))
     );
-  }, [jobs, rangeStart, rangeEnd]);
+  }, [filteredJobs, rangeStart, rangeEnd]);
 
   return (
     <main className="min-h-screen bg-[#1a1a2e] text-zinc-100 p-4 md:p-6 pb-24">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <h1 className="text-2xl md:text-3xl font-bold">🗓️ 排程</h1>
         <div className="flex gap-2">
           <button onClick={() => setMode("day")} className={`px-3 py-1.5 rounded-lg text-sm ${mode === "day" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-300"}`}>日視圖</button>
           <button onClick={() => setMode("week")} className={`px-3 py-1.5 rounded-lg text-sm ${mode === "week" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-300"}`}>週視圖</button>
         </div>
       </div>
+
+      <section className="rounded-xl border border-white/10 bg-[#202033] p-3 mb-4">
+        <div className="flex flex-wrap gap-2">
+          {[
+            ["all", "全部"],
+            ["trading", "Trading"],
+            ["content", "Content"],
+            ["monitoring", "Monitoring"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setCategory(value as CategoryFilter)}
+              className={`px-3 py-1.5 rounded-lg text-sm ${category === value ? "bg-purple-600 text-white" : "bg-zinc-800 text-zinc-300"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-300">
+          {Object.keys(AGENT_EMOJI).map((agentId) => (
+            <div key={agentId} className="inline-flex items-center gap-1 rounded-md bg-white/5 border border-white/10 px-2 py-1">
+              <span>{AGENT_EMOJI[agentId]}</span>
+              <span>{AGENT_LABEL[agentId] ?? agentId}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="rounded-xl border border-white/10 bg-[#202033] p-3 overflow-x-auto">
         <div className="min-w-[760px]">
@@ -172,7 +246,7 @@ export default function SchedulePage() {
                     style={{ top, left, width: `calc(${colWidth} - 8px)` }}
                     title={`${job.name} @ ${time.toLocaleString("zh-TW")}`}
                   >
-                    {shortName(job.name)}
+                    {shortName(job)}
                   </button>
                 );
               })}
@@ -188,17 +262,21 @@ export default function SchedulePage() {
             <thead className="bg-white/5 text-zinc-300">
               <tr>
                 <th className="text-left p-3">名稱</th>
+                <th className="text-left p-3">描述</th>
                 <th className="text-left p-3">Agent</th>
+                <th className="text-left p-3">分類</th>
                 <th className="text-left p-3">排程</th>
                 <th className="text-left p-3">上次執行</th>
                 <th className="text-left p-3">狀態</th>
               </tr>
             </thead>
             <tbody>
-              {jobs.map((job) => (
+              {filteredJobs.map((job) => (
                 <tr key={job.id} className="border-t border-white/10">
-                  <td className="p-3">{job.name}</td>
+                  <td className="p-3">{AGENT_EMOJI[job.agentId] ?? "⚙️"} {job.name}</td>
+                  <td className="p-3 text-zinc-300">{job.description ?? "-"}</td>
                   <td className="p-3">{job.agentId}</td>
+                  <td className="p-3">{job.category ?? "other"}</td>
                   <td className="p-3 font-mono text-xs">{job.schedule.expr}</td>
                   <td className="p-3">{fmtDate(job.state?.lastRunAtMs)}</td>
                   <td className="p-3">{statusLamp(job.state?.lastStatus)}</td>
@@ -214,6 +292,7 @@ export default function SchedulePage() {
           <div className="w-full max-w-md rounded-xl bg-[#1f1f35] border border-white/10 p-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-3">{selected.job.name}</h3>
             <div className="space-y-2 text-sm text-zinc-300">
+              <div><span className="text-zinc-500">描述：</span>{selected.job.description ?? "-"}</div>
               <div><span className="text-zinc-500">Schedule：</span>{selected.job.schedule.expr} ({selected.job.schedule.tz ?? "local"})</div>
               <div><span className="text-zinc-500">Last status：</span>{selected.job.state?.lastStatus ?? "-"}</div>
               <div><span className="text-zinc-500">Next run：</span>{fmtDate(selected.job.state?.nextRunAtMs)}</div>
