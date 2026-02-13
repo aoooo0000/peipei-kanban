@@ -25,6 +25,16 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
+  // Allow public routes (login page) regardless of auth state
+  if (isPublicRoute && !isLoggedIn) {
+    return NextResponse.next();
+  }
+
+  // Redirect logged-in users away from login page
+  if (isLoggedIn && pathname === "/login") {
+    return NextResponse.redirect(new URL("/", nextUrl));
+  }
+
   if (!isLoggedIn) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,14 +43,6 @@ export default auth((req) => {
     const loginUrl = new URL("/login", nextUrl);
     loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
-  }
-
-  if (isLoggedIn && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", nextUrl));
-  }
-
-  if (isPublicRoute) {
-    return NextResponse.next();
   }
 
   return NextResponse.next();
