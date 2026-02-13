@@ -115,12 +115,15 @@ function TaskCard({ task, onEdit, onDelete, onMove, onViewDetail, isDragOverlay,
   );
 }
 
-function Column({ status, children, screenMode }: { status: TaskStatus; children: React.ReactNode; screenMode: ScreenMode }) {
+function Column({ status, children, screenMode, hasCards }: { status: TaskStatus; children: React.ReactNode; screenMode: ScreenMode; hasCards: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
+  const flexClass = screenMode === "large"
+    ? hasCards ? "flex-1 min-w-[220px]" : "flex-none w-[140px] min-w-[140px]"
+    : "min-w-0";
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-2xl p-3 border ${screenMode === "large" ? "min-w-[280px] xl:min-w-[320px]" : "min-w-0"} ${isOver ? "bg-[#2a2a46] border-blue-400/50" : "bg-[#222236] border-white/10"}`}
+      className={`rounded-2xl p-3 border ${flexClass} ${isOver ? "bg-[#2a2a46] border-blue-400/50" : "bg-[#222236] border-white/10"}`}
     >
       {children}
     </div>
@@ -364,7 +367,7 @@ export default function KanbanBoard() {
     ? "space-y-3 transition-all duration-200"
     : screenMode === "medium"
       ? "grid grid-cols-2 gap-4 transition-all duration-200"
-      : "grid grid-cols-5 gap-4 overflow-x-auto pb-2 transition-all duration-200";
+      : "flex gap-4 pb-2 transition-all duration-200";
 
   return (
     <>
@@ -376,7 +379,7 @@ export default function KanbanBoard() {
             const isOpen = screenMode !== "small" || accordionOpen[status];
 
             return (
-              <Column key={status} status={status} screenMode={screenMode}>
+              <Column key={status} status={status} screenMode={screenMode} hasCards={count > 0}>
                 <button
                   type="button"
                   onClick={() => {
