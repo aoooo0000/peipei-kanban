@@ -6,9 +6,9 @@ import Link from "next/link";
 const TABS = [
   { path: "/", icon: "📋", label: "看板" },
   { path: "/dashboard", icon: "📊", label: "總覽" },
-  { path: "/docs", icon: "📄", label: "文件" },
+  { path: "/schedule", icon: "🗓️", label: "排程" },
+  { path: "/flow", icon: "🔄", label: "流程" },
   { path: "/invest", icon: "📈", label: "投資" },
-  { path: "/logs", icon: "📝", label: "日誌" },
 ];
 
 export default function BottomNav() {
