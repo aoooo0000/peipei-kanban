@@ -4,107 +4,305 @@ import { useState } from "react";
 
 type Tab = "architecture" | "workflow";
 
-type NodeItem = {
+/* ─── Architecture Nodes ─── */
+interface AgentNode {
   key: string;
-  title: string;
-  emoji: string;
-  desc: string;
-  status: string;
-  cls: string;
-  grid: string;
-};
-
-type FlowStep = {
   emoji: string;
   title: string;
   desc: string;
-};
+  role: "user" | "core" | "agent" | "service";
+}
 
-const nodes: NodeItem[] = [
-  { key: "andy", title: "Andy", emoji: "👤", desc: "策略決策與指令來源", status: "online", cls: "border-amber-300/70 shadow-amber-400/20", grid: "col-start-3 row-start-1" },
-  { key: "coder", title: "Coder", emoji: "💻", desc: "程式開發與維護", status: "ready", cls: "border-blue-300/70 shadow-blue-400/20", grid: "col-start-1 row-start-2" },
-  { key: "research", title: "Deep Research", emoji: "🔬", desc: "深入資料研究", status: "ready", cls: "border-cyan-300/70 shadow-cyan-400/20", grid: "col-start-1 row-start-3" },
-  { key: "main", title: "霈霈豬", emoji: "🐷", desc: "中央協調與任務派發", status: "active", cls: "border-purple-300 shadow-purple-500/40 ring-1 ring-purple-300/50", grid: "col-start-3 row-start-2 row-span-2 scale-105" },
-  { key: "trading", title: "Trading Lab", emoji: "📈", desc: "交易流程執行", status: "active", cls: "border-emerald-300/70 shadow-emerald-400/20", grid: "col-start-5 row-start-2" },
-  { key: "alpaca", title: "Alpaca", emoji: "📊", desc: "券商 API 交易介接", status: "linked", cls: "border-emerald-200/60 shadow-emerald-300/20", grid: "col-start-5 row-start-3" },
-  { key: "notion", title: "Notion", emoji: "📝", desc: "知識庫與看板資料", status: "linked", cls: "border-zinc-300/40 shadow-zinc-300/10", grid: "col-start-2 row-start-4" },
-  { key: "gmail", title: "Gmail", emoji: "📧", desc: "文章來源與通知", status: "linked", cls: "border-zinc-300/40 shadow-zinc-300/10", grid: "col-start-3 row-start-4" },
-  { key: "browser", title: "Browser", emoji: "🌐", desc: "網頁檢索與操作", status: "linked", cls: "border-zinc-300/40 shadow-zinc-300/10", grid: "col-start-4 row-start-4" },
+const CORE: AgentNode = { key: "main", emoji: "🐷", title: "霈霈豬", desc: "中央協調 · 任務派發 · 投資分析", role: "core" };
+const USER: AgentNode = { key: "andy", emoji: "👤", title: "Andy", desc: "Telegram 直接對話", role: "user" };
+
+const AGENTS: AgentNode[] = [
+  { key: "trading", emoji: "📈", title: "Trading Lab", desc: "Paper Trading · 盤中監控 · 策略學習", role: "agent" },
+  { key: "coder", emoji: "💻", title: "Coder", desc: "程式開發 · 功能實作 · Bug 修復", role: "agent" },
+  { key: "research", emoji: "🔬", title: "Deep Research", desc: "OpenAI o4-mini · 深度報告", role: "agent" },
 ];
 
-const timelines: { title: string; color: string; steps: FlowStep[] }[] = [
+const SERVICES: AgentNode[] = [
+  { key: "notion", emoji: "📝", title: "Notion", desc: "知識庫 · 看板 · 文章", role: "service" },
+  { key: "gmail", emoji: "📧", title: "Gmail", desc: "MimiVsJames 來源", role: "service" },
+  { key: "browser", emoji: "🌐", title: "Browser", desc: "網頁抓取 · 登入操作", role: "service" },
+  { key: "alpaca", emoji: "📊", title: "Alpaca", desc: "Paper Trading API", role: "service" },
+];
+
+const CONNECTIONS: { from: string; to: string; label: string; bidirectional?: boolean }[] = [
+  { from: "andy", to: "main", label: "直接對話", bidirectional: true },
+  { from: "main", to: "trading", label: "sessions_send" },
+  { from: "main", to: "coder", label: "spawn 任務" },
+  { from: "main", to: "research", label: "腳本呼叫" },
+  { from: "trading", to: "main", label: "求助升級" },
+  { from: "coder", to: "main", label: "回報結果" },
+  { from: "main", to: "notion", label: "讀寫" },
+  { from: "main", to: "gmail", label: "收信" },
+  { from: "main", to: "browser", label: "操作" },
+  { from: "trading", to: "alpaca", label: "交易" },
+];
+
+/* ─── Workflow Steps ─── */
+interface FlowStep {
+  emoji: string;
+  title: string;
+  desc: string;
+  time?: string;
+}
+
+interface WorkflowDef {
+  title: string;
+  emoji: string;
+  agentColor: string;
+  gradientFrom: string;
+  gradientTo: string;
+  cardBg: string;
+  cardBorder: string;
+  accentText: string;
+  steps: FlowStep[];
+}
+
+const WORKFLOWS: WorkflowDef[] = [
   {
     title: "MimiVsJames 整理",
-    color: "indigo",
+    emoji: "📰",
+    agentColor: "indigo",
+    gradientFrom: "from-indigo-500/20",
+    gradientTo: "to-indigo-900/5",
+    cardBg: "bg-indigo-500/10",
+    cardBorder: "border-indigo-400/30",
+    accentText: "text-indigo-300",
     steps: [
-      { emoji: "📧", title: "Gmail 收信", desc: "抓取新文章" },
-      { emoji: "🧭", title: "分類判斷", desc: "標註主題與類型" },
-      { emoji: "🧱", title: "四道 Gate", desc: "結構、QA、關聯檢查" },
-      { emoji: "📝", title: "寫入 Notion", desc: "建立可追蹤知識卡" },
-      { emoji: "✅", title: "完成回報", desc: "更新看板與狀態" },
+      { emoji: "📧", title: "Gmail 收信", desc: "IMAP 抓取 MimiVsJames 新郵件", time: "05:30 / 15:00" },
+      { emoji: "🏷️", title: "分類判斷", desc: "依寄件人分到 4 個 Notion DB" },
+      { emoji: "📋", title: "Gate 1: 盤點", desc: "完整抓取文字 + 圖片 + 數據" },
+      { emoji: "📐", title: "Gate 2: 結構", desc: "規劃章節、callout、圖片位置" },
+      { emoji: "📤", title: "Gate 3: 寫入", desc: "分批上傳 Notion blocks + 圖片" },
+      { emoji: "🔗", title: "關聯連結", desc: "自動連結相同標的的舊文章" },
+      { emoji: "✅", title: "Gate 4: QA", desc: "COMPLIANCE MATRIX 自檢交付" },
     ],
   },
   {
     title: "Trading Lab 每日循環",
-    color: "emerald",
+    emoji: "📈",
+    agentColor: "emerald",
+    gradientFrom: "from-emerald-500/20",
+    gradientTo: "to-emerald-900/5",
+    cardBg: "bg-emerald-500/10",
+    cardBorder: "border-emerald-400/30",
+    accentText: "text-emerald-300",
     steps: [
-      { emoji: "🌅", title: "盤前準備", desc: "Watchlist + 風險檢查" },
-      { emoji: "🚀", title: "開盤交易", desc: "掃描買點與執行" },
-      { emoji: "👀", title: "盤中監控", desc: "持倉/停損/異動" },
-      { emoji: "🌙", title: "收盤決策", desc: "過夜風險與部位調整" },
-      { emoji: "📘", title: "盤後反思", desc: "回顧與策略優化" },
+      { emoji: "🎯", title: "盤前準備", desc: "同步 Notion、掃描 Watchlist、風險檢查", time: "21:00" },
+      { emoji: "🚀", title: "開盤交易", desc: "開盤 15 分後掃描買點、自動下單", time: "22:45" },
+      { emoji: "👁️", title: "盤中監控", desc: "持倉/停損/異動，每小時檢查", time: "23:30-04:00" },
+      { emoji: "🌙", title: "收盤決策", desc: "過夜風險評估、部位調整", time: "04:30" },
+      { emoji: "📖", title: "盤後反思", desc: "回顧交易、Mimi 學習、策略優化", time: "06:00" },
+      { emoji: "📊", title: "週末總結", desc: "績效、勝率、下週計畫", time: "週六 10:00" },
     ],
   },
   {
     title: "霈霈豬每日循環",
-    color: "purple",
+    emoji: "🐷",
+    agentColor: "purple",
+    gradientFrom: "from-purple-500/20",
+    gradientTo: "to-purple-900/5",
+    cardBg: "bg-purple-500/10",
+    cardBorder: "border-purple-400/30",
+    accentText: "text-purple-300",
     steps: [
-      { emoji: "☀️", title: "晨間整理", desc: "Mimi + NotebookLM" },
-      { emoji: "📰", title: "監控更新", desc: "新聞與異動提示" },
-      { emoji: "📊", title: "收盤總結", desc: "指數、持股與催化劑" },
-      { emoji: "🧠", title: "盤前報告", desc: "交易前重點整合" },
-      { emoji: "🔁", title: "看板同步", desc: "任務狀態持續更新" },
+      { emoji: "📰", title: "Mimi 整理", desc: "Gmail → Notion（4 Gate 流程）", time: "05:30" },
+      { emoji: "🎙️", title: "NotebookLM", desc: "Mimi + 游庭皓簡報生成", time: "06:00" },
+      { emoji: "☀️", title: "收盤總結", desc: "三大指數、Top5 漲跌、催化劑", time: "07:00" },
+      { emoji: "📡", title: "新聞監控", desc: "每 4hr 掃描持股新聞+異動", time: "10/14/18/22" },
+      { emoji: "📊", title: "盤前報告", desc: "期指、技術面、Watchlist", time: "21:00" },
+      { emoji: "✅", title: "任務看板", desc: "Heartbeat 檢查 Notion 待辦", time: "持續" },
     ],
   },
 ];
 
-const colorStyles: Record<string, string> = {
-  indigo: "border-indigo-300/60 bg-indigo-500/10",
-  emerald: "border-emerald-300/60 bg-emerald-500/10",
-  purple: "border-purple-300/60 bg-purple-500/10",
-};
-
-function statusLamp(status: string) {
-  if (status === "active") return "🟢";
-  if (status === "online") return "🟡";
-  return "⚪";
+/* ─── Role styling ─── */
+function nodeStyle(role: string) {
+  switch (role) {
+    case "user":
+      return "border-amber-400/60 bg-amber-500/10 shadow-amber-500/10";
+    case "core":
+      return "border-purple-400/70 bg-purple-500/15 shadow-purple-500/20 ring-1 ring-purple-400/30";
+    case "agent":
+      return "border-blue-400/50 bg-blue-500/10 shadow-blue-500/10";
+    default:
+      return "border-zinc-500/40 bg-zinc-500/5 shadow-zinc-500/5";
+  }
 }
 
-function NodeCard({ node }: { node: NodeItem }) {
+function roleBadge(role: string) {
+  switch (role) {
+    case "user": return { label: "用戶", cls: "bg-amber-500/20 text-amber-300" };
+    case "core": return { label: "主管", cls: "bg-purple-500/20 text-purple-300" };
+    case "agent": return { label: "Agent", cls: "bg-blue-500/20 text-blue-300" };
+    default: return { label: "服務", cls: "bg-zinc-500/20 text-zinc-300" };
+  }
+}
+
+/* ─── Architecture Diagram (Responsive) ─── */
+function ArchitectureDiagram() {
   return (
-    <div
-      className={`rounded-2xl border bg-white/5 backdrop-blur-sm p-3 md:p-4 shadow-lg transition-all duration-200 hover:scale-[1.03] hover:shadow-xl ${node.cls} ${node.grid}`}
-    >
-      <div className="font-semibold">{node.emoji} {node.title}</div>
-      <div className="text-xs text-zinc-300 mt-1">{node.desc}</div>
-      <div className="text-xs mt-2 text-zinc-200">{statusLamp(node.status)} {node.status}</div>
+    <div className="space-y-6">
+      {/* Andy → 霈霈豬 */}
+      <div className="flex flex-col items-center gap-2">
+        <NodeCard node={USER} size="md" />
+        <ConnectionArrow label="直接對話" bidirectional />
+        <NodeCard node={CORE} size="lg" />
+      </div>
+
+      {/* Agents row */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <div className="h-px w-8 bg-zinc-600" />
+          <span className="text-xs">派發任務</span>
+          <div className="h-px w-8 bg-zinc-600" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-3xl">
+          {AGENTS.map((agent) => (
+            <NodeCard key={agent.key} node={agent} size="md" />
+          ))}
+        </div>
+      </div>
+
+      {/* Services row */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <div className="h-px w-8 bg-zinc-600" />
+          <span className="text-xs">外部服務</span>
+          <div className="h-px w-8 bg-zinc-600" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">
+          {SERVICES.map((svc) => (
+            <NodeCard key={svc.key} node={svc} size="sm" />
+          ))}
+        </div>
+      </div>
+
+      {/* Connection Legend */}
+      <div className="rounded-xl border border-white/10 bg-[#202033] p-4">
+        <h3 className="text-sm font-semibold text-zinc-400 mb-3">連線關係</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          {CONNECTIONS.map((conn) => (
+            <div key={`${conn.from}-${conn.to}`} className="flex items-center gap-2 text-zinc-300">
+              <span className="text-zinc-500">{conn.from === "andy" ? "👤" : conn.from === "main" ? "🐷" : conn.from === "trading" ? "📈" : "💻"}</span>
+              <span className="text-zinc-500">{conn.bidirectional ? "↔" : "→"}</span>
+              <span className="text-zinc-500">{conn.to === "main" ? "🐷" : conn.to === "trading" ? "📈" : conn.to === "coder" ? "💻" : conn.to === "research" ? "🔬" : conn.to === "notion" ? "📝" : conn.to === "gmail" ? "📧" : conn.to === "browser" ? "🌐" : "📊"}</span>
+              <span className="text-zinc-400 ml-1">{conn.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-function FlowTimeline({ title, color, steps }: { title: string; color: string; steps: FlowStep[] }) {
+function NodeCard({ node, size = "md" }: { node: AgentNode; size?: "sm" | "md" | "lg" }) {
+  const badge = roleBadge(node.role);
+  const sizeClasses = {
+    sm: "p-3",
+    md: "p-4",
+    lg: "p-5 sm:p-6",
+  };
+  const emojiSize = {
+    sm: "text-xl",
+    md: "text-2xl",
+    lg: "text-3xl sm:text-4xl",
+  };
+  const titleSize = {
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-lg sm:text-xl",
+  };
+
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#202033]/90 p-4">
-      <h2 className="font-semibold mb-3">{title}</h2>
-      <div className="overflow-x-auto">
-        <div className="flex items-stretch min-w-max gap-2 md:gap-3 pb-2">
-          {steps.map((step, idx) => (
-            <div key={`${title}-${step.title}`} className="flex items-center">
-              <div className={`w-48 rounded-xl border px-3 py-3 shadow-md transition-all duration-200 hover:scale-[1.03] ${colorStyles[color] ?? "border-zinc-300/50 bg-zinc-500/10"}`}>
-                <div className="font-medium">{step.emoji} {step.title}</div>
-                <div className="text-xs text-zinc-300 mt-1">{step.desc}</div>
+    <div className={`rounded-2xl border shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-xl ${nodeStyle(node.role)} ${sizeClasses[size]} ${size === "lg" ? "w-full max-w-xs mx-auto" : ""}`}>
+      <div className="flex items-start gap-3">
+        <span className={emojiSize[size]}>{node.emoji}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`font-bold ${titleSize[size]}`}>{node.title}</h3>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+          </div>
+          <p className="text-xs text-zinc-400 mt-1">{node.desc}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConnectionArrow({ label, bidirectional }: { label: string; bidirectional?: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 py-1">
+      {bidirectional && <span className="text-zinc-500 text-xs">▲</span>}
+      <div className="w-px h-6 bg-gradient-to-b from-zinc-500 to-zinc-600" />
+      <span className="text-[10px] text-zinc-400 bg-[#1a1a2e] px-2">{label}</span>
+      <div className="w-px h-6 bg-gradient-to-b from-zinc-600 to-zinc-500" />
+      <span className="text-zinc-500 text-xs">▼</span>
+    </div>
+  );
+}
+
+/* ─── Workflow Timeline (Responsive) ─── */
+function WorkflowSection({ workflow }: { workflow: WorkflowDef }) {
+  return (
+    <section className={`rounded-2xl border border-white/10 overflow-hidden bg-gradient-to-br ${workflow.gradientFrom} ${workflow.gradientTo}`}>
+      {/* Header */}
+      <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-white/10">
+        <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+          <span className="text-xl">{workflow.emoji}</span>
+          {workflow.title}
+        </h2>
+      </div>
+
+      {/* Steps - vertical on mobile, horizontal wrap on desktop */}
+      <div className="p-4 sm:p-5">
+        {/* Desktop: horizontal wrap */}
+        <div className="hidden sm:flex flex-wrap gap-3 items-stretch">
+          {workflow.steps.map((step, idx) => (
+            <div key={step.title} className="flex items-center">
+              <StepCard step={step} workflow={workflow} />
+              {idx < workflow.steps.length - 1 && (
+                <div className="flex-shrink-0 mx-1.5 text-zinc-500">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M6 10h8m0 0l-3-3m3 3l-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile: vertical timeline */}
+        <div className="sm:hidden space-y-0">
+          {workflow.steps.map((step, idx) => (
+            <div key={step.title}>
+              <div className="flex gap-3">
+                {/* Timeline line */}
+                <div className="flex flex-col items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${workflow.cardBg} ${workflow.cardBorder} border`}>
+                    {step.emoji}
+                  </div>
+                  {idx < workflow.steps.length - 1 && (
+                    <div className={`w-px flex-1 min-h-[16px] bg-gradient-to-b ${workflow.cardBorder.replace("border-", "from-").replace("/30", "/40")} to-transparent`} />
+                  )}
+                </div>
+                {/* Content */}
+                <div className="flex-1 pb-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-semibold text-sm">{step.title}</h4>
+                    {step.time && (
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${workflow.cardBg} ${workflow.accentText}`}>
+                        {step.time}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">{step.desc}</p>
+                </div>
               </div>
-              {idx < steps.length - 1 && <span className="mx-2 text-lg text-zinc-300">→</span>}
             </div>
           ))}
         </div>
@@ -113,38 +311,20 @@ function FlowTimeline({ title, color, steps }: { title: string; color: string; s
   );
 }
 
-function ArchitectureDiagram() {
+function StepCard({ step, workflow }: { step: FlowStep; workflow: WorkflowDef }) {
   return (
-    <div className="relative rounded-2xl border border-white/10 bg-[#202033]/90 p-4 md:p-6 overflow-x-auto">
-      <div className="relative min-w-[880px] h-[560px]">
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 880 560" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(244,244,245,0.7)" />
-            </marker>
-          </defs>
-          <path d="M440 140 L440 190" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M260 250 L370 250" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M620 250 L510 250" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M260 350 L370 300" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M620 350 L510 300" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M440 330 L440 430" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M410 430 L320 470" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M440 430 L440 470" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <path d="M470 430 L560 470" stroke="rgba(244,244,245,0.65)" strokeWidth="2" markerEnd="url(#arrow)" />
-          <text x="446" y="166" fill="rgba(244,244,245,0.75)" fontSize="11">指令</text>
-          <text x="300" y="244" fill="rgba(244,244,245,0.75)" fontSize="11">spawn</text>
-          <text x="535" y="244" fill="rgba(244,244,245,0.75)" fontSize="11">sessions_send</text>
-        </svg>
-
-        <div className="absolute inset-0 grid grid-cols-5 grid-rows-4 gap-4">
-          {nodes.map((node) => <NodeCard key={node.key} node={node} />)}
-        </div>
-      </div>
+    <div className={`rounded-xl border px-3 py-2.5 w-[140px] lg:w-[160px] transition-all duration-200 hover:scale-[1.03] hover:shadow-lg ${workflow.cardBg} ${workflow.cardBorder}`}>
+      <div className="text-lg mb-1">{step.emoji}</div>
+      <h4 className="font-semibold text-sm leading-tight">{step.title}</h4>
+      <p className="text-[11px] text-zinc-400 mt-1 leading-snug">{step.desc}</p>
+      {step.time && (
+        <div className={`mt-1.5 text-[10px] font-mono ${workflow.accentText}`}>{step.time}</div>
+      )}
     </div>
   );
 }
 
+/* ─── Page ─── */
 export default function FlowPage() {
   const [tab, setTab] = useState<Tab>("architecture");
 
@@ -153,26 +333,30 @@ export default function FlowPage() {
       <h1 className="text-2xl md:text-3xl font-bold mb-4">🔄 流程</h1>
 
       <div className="flex gap-2 mb-5">
-        <button
-          onClick={() => setTab("architecture")}
-          className={`px-4 py-2 rounded-lg text-sm ${tab === "architecture" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-300"}`}
-        >
-          架構圖
-        </button>
-        <button
-          onClick={() => setTab("workflow")}
-          className={`px-4 py-2 rounded-lg text-sm ${tab === "workflow" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-300"}`}
-        >
-          工作流程
-        </button>
+        {[
+          { key: "architecture" as Tab, label: "🏗️ 架構圖" },
+          { key: "workflow" as Tab, label: "⚡ 工作流程" },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              tab === key
+                ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                : "bg-[#2a2a3e] text-zinc-300 hover:bg-[#333350] border border-white/10"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {tab === "architecture" ? (
         <ArchitectureDiagram />
       ) : (
         <div className="space-y-6">
-          {timelines.map((item) => (
-            <FlowTimeline key={item.title} title={item.title} color={item.color} steps={item.steps} />
+          {WORKFLOWS.map((wf) => (
+            <WorkflowSection key={wf.title} workflow={wf} />
           ))}
         </div>
       )}
