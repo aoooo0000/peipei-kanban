@@ -7,7 +7,7 @@ const TABS = [
   { path: "/", icon: "📋", label: "看板" },
   { path: "/dashboard", icon: "📊", label: "總覽" },
   { path: "/schedule", icon: "🗓️", label: "排程" },
-  { path: "/flow", icon: "🔄", label: "流程" },
+  { path: "/logs", icon: "📝", label: "日誌" },
   { path: "/invest", icon: "📈", label: "投資" },
 ];
 

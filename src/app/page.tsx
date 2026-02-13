@@ -1,3 +1,4 @@
+import Link from "next/link";
 import KanbanBoard from "@/components/KanbanBoard";
 import { AGENTS } from "@/lib/agents";
 
@@ -12,6 +13,13 @@ const LAST_ACTIVE: Record<string, string> = {
   "trading-lab": "2 分鐘前",
   coder: "5 分鐘前",
 };
+
+const QUICK_ACTIONS = [
+  { href: "/", emoji: "📝", label: "新增任務" },
+  { href: "/invest", emoji: "📊", label: "查持倉" },
+  { href: "/schedule", emoji: "📅", label: "看排程" },
+  { href: "/logs", emoji: "📋", label: "活動記錄" },
+];
 
 export default function Home() {
   return (
@@ -45,6 +53,23 @@ export default function Home() {
           })}
         </div>
       </section>
+
+      <section className="mb-6">
+        <h2 className="text-sm md:text-base font-semibold text-white/80 mb-3">快捷操作</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {QUICK_ACTIONS.map((action) => (
+            <Link
+              key={action.href + action.label}
+              href={action.href}
+              className="glass-card rounded-2xl p-3.5 flex items-center gap-2.5 border border-white/10 hover:border-[#667eea]/45 hover:shadow-[0_0_24px_rgba(102,126,234,0.25)] transition-all"
+            >
+              <span className="text-xl">{action.emoji}</span>
+              <span className="text-sm font-medium text-white/90">{action.label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <KanbanBoard />
     </main>
   );

@@ -1,80 +1,56 @@
 import { NextResponse } from "next/server";
-import { readdir, readFile } from "fs/promises";
-import { join } from "path";
+
+type LogType = "agent" | "task" | "system";
 
 interface LogEntry {
   id: string;
   timestamp: string;
-  type: "agent" | "task" | "document" | "system";
-  message: string;
-  details?: string;
+  type: LogType;
+  title: string;
+  description: string;
 }
 
-async function parseSessionLogs(): Promise<LogEntry[]> {
-  const logs: LogEntry[] = [];
-  
-  try {
-    const agentsDir = join(process.env.HOME || "", ".openclaw", "agents");
-    const sessions = await readdir(agentsDir);
-    
-    // 只讀取最近的 50 個 session
-    const recentSessions = sessions.slice(-50);
-    
-    for (const session of recentSessions) {
-      const sessionPath = join(agentsDir, session);
-      
-      try {
-        const files = await readdir(sessionPath);
-        const transcriptFile = files.find(f => f.includes("transcript"));
-        
-        if (transcriptFile) {
-          const content = await readFile(join(sessionPath, transcriptFile), "utf-8");
-          
-          // 簡單解析：提取時間戳和消息
-          const lines = content.split("\n").filter(line => line.trim());
-          
-          lines.slice(-10).forEach((line, idx) => {
-            if (line.length > 10) {
-              logs.push({
-                id: `${session}-${idx}`,
-                timestamp: new Date().toISOString(), // 實際應該從文件中解析
-                type: "agent",
-                message: line.slice(0, 200),
-              });
-            }
-          });
-        }
-      } catch {
-        // 跳過無法讀取的 session
-      }
-    }
-  } catch (error) {
-    console.error("Failed to parse session logs:", error);
-  }
-  
-  // 如果沒有找到日誌，返回一些示例數據
-  if (logs.length === 0) {
-    return [
-      {
-        id: "demo-1",
-        timestamp: new Date().toISOString(),
-        type: "system",
-        message: "霈霈豬儀表板已啟動",
-      },
-    ];
-  }
-  
-  return logs.sort((a, b) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+function getDemoLogs(): LogEntry[] {
+  const now = Date.now();
+  return [
+    {
+      id: "log-1",
+      timestamp: new Date(now - 2 * 60 * 1000).toISOString(),
+      type: "agent",
+      title: "Peipei 完成晨間檢查",
+      description: "同步 Notion 任務資料庫，狀態看板已更新。",
+    },
+    {
+      id: "log-2",
+      timestamp: new Date(now - 8 * 60 * 1000).toISOString(),
+      type: "task",
+      title: "新增任務：整理投資月報",
+      description: "已指派給 Andy，優先級為 🟡 中，預計今晚完成。",
+    },
+    {
+      id: "log-3",
+      timestamp: new Date(now - 16 * 60 * 1000).toISOString(),
+      type: "system",
+      title: "系統排程成功執行",
+      description: "每日資料同步 job 執行完畢，耗時 3.2 秒。",
+    },
+    {
+      id: "log-4",
+      timestamp: new Date(now - 25 * 60 * 1000).toISOString(),
+      type: "agent",
+      title: "Coder 部署前端調整",
+      description: "Phase 2 UI 調整上線至預覽環境，等待驗收。",
+    },
+    {
+      id: "log-5",
+      timestamp: new Date(now - 40 * 60 * 1000).toISOString(),
+      type: "task",
+      title: "任務狀態變更：看板拖拽功能",
+      description: "由 To-do 移動到 進行中，已送出 API 更新。",
+    },
+  ];
 }
 
 export async function GET() {
-  try {
-    const logs = await parseSessionLogs();
-    return NextResponse.json({ logs });
-  } catch (error) {
-    console.error("Failed to fetch logs:", error);
-    return NextResponse.json({ logs: [] }, { status: 500 });
-  }
+  return NextResponse.json({ logs: getDemoLogs() });
 }

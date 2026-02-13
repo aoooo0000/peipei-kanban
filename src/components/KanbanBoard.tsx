@@ -1,8 +1,5 @@
 "use client";
 
-import { DndContext, DragEndEvent, DragOverlay, PointerSensor, TouchSensor, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Assignee, Priority, Task, TaskStatus } from "@/lib/notion";
@@ -69,32 +66,40 @@ function MoveMenu({ task, onMove }: { task: Task; onMove: (id: string, status: T
   );
 }
 
-function TaskCard({ task, onEdit, onDelete, onMove, onViewDetail, isDragOverlay, compact }: {
+function TaskCard({
+  task,
+  onEdit,
+  onDelete,
+  onMove,
+  onViewDetail,
+  compact,
+  canDrag,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+}: {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onMove: (id: string, status: TaskStatus) => void;
   onViewDetail: (task: Task) => void;
-  isDragOverlay?: boolean;
   compact?: boolean;
+  canDrag?: boolean;
+  isDragging?: boolean;
+  onDragStart?: (task: Task) => void;
+  onDragEnd?: () => void;
 }) {
-  const sortable = useSortable({ id: task.id, data: { task }, disabled: compact || isDragOverlay });
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = isDragOverlay
-    ? { attributes: {}, listeners: {}, setNodeRef: undefined, transform: null, transition: undefined, isDragging: false }
-    : sortable;
-
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
   const priorityClass = task.priority.includes("🔴") ? "text-red-300" : task.priority.includes("🟡") ? "text-amber-300" : "text-emerald-300";
   const priorityAccent = task.priority.includes("🔴") ? "before:bg-red-500" : task.priority.includes("🟡") ? "before:bg-amber-500" : "before:bg-emerald-500";
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      className={`relative overflow-hidden rounded-xl glass-card ${priorityAccent} before:absolute before:left-0 before:top-0 before:h-full before:w-1.5 ${compact ? "p-2.5" : "p-3"} transition-all hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(102,126,234,0.25)] ${isDragOverlay ? "scale-[1.05] shadow-2xl ring-2 ring-[#667eea]/60" : ""}`}
+      draggable={!!canDrag}
+      onDragStart={() => onDragStart?.(task)}
+      onDragEnd={() => onDragEnd?.()}
+      className={`relative overflow-hidden rounded-xl glass-card ${priorityAccent} before:absolute before:left-0 before:top-0 before:h-full before:w-1.5 ${compact ? "p-2.5" : "p-3"} transition-all hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(102,126,234,0.25)] ${canDrag ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "opacity-45" : "opacity-100"}`}
     >
-      <div {...listeners} className={`${compact ? "" : "cursor-grab active:cursor-grabbing"} touch-none select-none`}>
+      <div className="touch-none select-none">
         <div className="flex items-start justify-between gap-2">
           <h4 className={`${compact ? "text-sm" : ""} font-semibold text-white flex-1 leading-snug`}>{task.title}</h4>
           {!compact && <span className="text-zinc-500 text-xs mt-1">⠿</span>}
@@ -116,14 +121,37 @@ function TaskCard({ task, onEdit, onDelete, onMove, onViewDetail, isDragOverlay,
   );
 }
 
-function Column({ status, children, screenMode, hasCards }: { status: TaskStatus; children: React.ReactNode; screenMode: ScreenMode; hasCards: boolean }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+function Column({
+  children,
+  screenMode,
+  hasCards,
+  isOver,
+  onDragOver,
+  onDrop,
+  onDragLeave,
+}: {
+  children: React.ReactNode;
+  screenMode: ScreenMode;
+  hasCards: boolean;
+  isOver?: boolean;
+  onDragOver?: () => void;
+  onDrop?: () => void;
+  onDragLeave?: () => void;
+}) {
   const flexClass = screenMode === "large"
     ? hasCards ? "flex-1 min-w-[220px]" : "flex-none w-[140px] min-w-[140px]"
     : "min-w-0";
   return (
     <div
-      ref={setNodeRef}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver?.();
+      }}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop?.();
+      }}
       className={`rounded-2xl p-3 border glass-card ${flexClass} ${isOver ? "border-[#667eea]/70 shadow-[0_0_24px_rgba(102,126,234,0.2)]" : "border-white/15"}`}
     >
       {children}
@@ -248,12 +276,13 @@ export default function KanbanBoard() {
   const { data, mutate } = useSWR<{ tasks: Task[] }>("/api/tasks", fetcher, { refreshInterval: 15000 });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [addingStatus, setAddingStatus] = useState<TaskStatus | null>(null);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [screenMode, setScreenMode] = useState<ScreenMode>(() => {
     if (typeof window === "undefined") return "large";
     return getScreenMode(window.innerWidth);
   });
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [accordionOpen, setAccordionOpen] = useState<Record<TaskStatus, boolean>>({
     Ideas: false,
     "To-do": false,
@@ -262,10 +291,6 @@ export default function KanbanBoard() {
     "完成": false,
   });
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-  );
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
 
   useEffect(() => {
@@ -318,34 +343,6 @@ export default function KanbanBoard() {
     mutate();
   };
 
-  const handleDragStart = (event: { active: { id: string | number } }) => {
-    if (screenMode === "small") return;
-    const task = tasks.find((t) => t.id === event.active.id);
-    setActiveTask(task || null);
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    setActiveTask(null);
-    if (screenMode === "small") return;
-
-    const { active, over } = event;
-    if (!over) return;
-
-    const task = tasks.find((t) => t.id === active.id);
-    if (!task) return;
-
-    let targetStatus: TaskStatus | undefined;
-    if (STATUSES.includes(over.id as TaskStatus)) {
-      targetStatus = over.id as TaskStatus;
-    } else {
-      const overTask = tasks.find((t) => t.id === over.id);
-      targetStatus = overTask?.status;
-    }
-
-    if (!targetStatus || targetStatus === task.status) return;
-    await moveTask(task.id, targetStatus);
-  };
-
   const createTask = async (status: TaskStatus, input: Partial<Task>) => {
     await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, status }) });
     setAddingStatus(null);
@@ -373,60 +370,82 @@ export default function KanbanBoard() {
   return (
     <>
       <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">🐷 霈霈豬任務看板</h1>
-      <DndContext sensors={screenMode === "small" ? undefined : sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className={boardLayoutClass}>
-          {STATUSES.map((status) => {
-            const count = grouped[status]?.length ?? 0;
-            const isOpen = screenMode !== "small" || accordionOpen[status];
+      <div className={boardLayoutClass}>
+        {STATUSES.map((status) => {
+          const count = grouped[status]?.length ?? 0;
+          const isOpen = screenMode !== "small" || accordionOpen[status];
 
-            return (
-              <Column key={status} status={status} screenMode={screenMode} hasCards={count > 0}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (screenMode !== "small") return;
-                    setAccordionOpen((prev) => ({ ...prev, [status]: !prev[status] }));
-                  }}
-                  className={`mb-1 w-full flex items-center justify-between ${screenMode === "small" ? "cursor-pointer" : "cursor-default"}`}
-                >
-                  <h2 className="font-semibold text-left flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${STATUS_META[status].dot}`} />
-                    {STATUS_META[status].emoji} {STATUS_META[status].label}
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs bg-white/10 rounded-full px-2 py-0.5">{count}</span>
-                    {screenMode === "small" && <span className="text-zinc-400 text-xs">{isOpen ? "▾" : "▸"}</span>}
+          return (
+            <Column
+              key={status}
+              screenMode={screenMode}
+              hasCards={count > 0}
+              isOver={dragOverStatus === status}
+              onDragOver={() => {
+                if (screenMode === "small") return;
+                setDragOverStatus(status);
+              }}
+              onDragLeave={() => {
+                if (dragOverStatus === status) setDragOverStatus(null);
+              }}
+              onDrop={async () => {
+                if (!draggingTaskId || screenMode === "small") return;
+                const task = tasks.find((t) => t.id === draggingTaskId);
+                if (task && task.status !== status) await moveTask(task.id, status);
+                setDraggingTaskId(null);
+                setDragOverStatus(null);
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  if (screenMode !== "small") return;
+                  setAccordionOpen((prev) => ({ ...prev, [status]: !prev[status] }));
+                }}
+                className={`mb-1 w-full flex items-center justify-between ${screenMode === "small" ? "cursor-pointer" : "cursor-default"}`}
+              >
+                <h2 className="font-semibold text-left flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${STATUS_META[status].dot}`} />
+                  {STATUS_META[status].emoji} {STATUS_META[status].label}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs bg-white/10 rounded-full px-2 py-0.5">{count}</span>
+                  {screenMode === "small" && <span className="text-zinc-400 text-xs">{isOpen ? "▾" : "▸"}</span>}
+                </div>
+              </button>
+
+              {isOpen && (
+                <>
+                  <div className="space-y-2.5 min-h-12 mt-2">
+                    {(grouped[status] ?? []).map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onEdit={setEditingTask}
+                        onDelete={deleteTask}
+                        onMove={moveTask}
+                        onViewDetail={setDetailTask}
+                        compact={screenMode === "small"}
+                        canDrag={screenMode !== "small"}
+                        isDragging={draggingTaskId === task.id}
+                        onDragStart={(dragTask) => {
+                          if (screenMode === "small") return;
+                          setDraggingTaskId(dragTask.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggingTaskId(null);
+                          setDragOverStatus(null);
+                        }}
+                      />
+                    ))}
                   </div>
-                </button>
-
-                {isOpen && (
-                  <>
-                    <SortableContext items={(grouped[status] ?? []).map((t) => t.id)} strategy={rectSortingStrategy}>
-                      <div className="space-y-2.5 min-h-12 mt-2">
-                        {(grouped[status] ?? []).map((task) => (
-                          <TaskCard
-                            key={task.id}
-                            task={task}
-                            onEdit={setEditingTask}
-                            onDelete={deleteTask}
-                            onMove={moveTask}
-                            onViewDetail={setDetailTask}
-                            compact={screenMode === "small"}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                    <button onClick={() => setAddingStatus(status)} className="mt-3 w-full rounded-lg border border-dashed border-blue-400/50 py-2 text-sm text-blue-300 hover:bg-[#7c90f2]/10">+ 新增任務</button>
-                  </>
-                )}
-              </Column>
-            );
-          })}
-        </div>
-        <DragOverlay>
-          {activeTask ? <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} onMove={() => {}} onViewDetail={() => {}} isDragOverlay /> : null}
-        </DragOverlay>
-      </DndContext>
+                  <button onClick={() => setAddingStatus(status)} className="mt-3 w-full rounded-lg border border-dashed border-blue-400/50 py-2 text-sm text-blue-300 hover:bg-[#7c90f2]/10">+ 新增任務</button>
+                </>
+              )}
+            </Column>
+          );
+        })}
+      </div>
 
       {addingStatus && <TaskForm onClose={() => setAddingStatus(null)} onSubmit={(input) => createTask(addingStatus, input)} initial={{ status: addingStatus }} />}
       {editingTask && <TaskForm initial={editingTask} onClose={() => setEditingTask(null)} onSubmit={(input) => updateTask(editingTask.id, input)} />}
