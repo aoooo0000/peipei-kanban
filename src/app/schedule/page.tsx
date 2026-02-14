@@ -174,7 +174,8 @@ function getStatusForDate(slot: ScheduleSlot, selectedDate: Date, todayKey: stri
 
   const s = getExecutionStatus(slot);
   if (s.status === "ok") return { status: "ok", label: "✅ 已執行", className: "bg-green-500/20 text-green-300 border-green-400/30" };
-  if (s.status === "error") return { status: "error", label: "❌ 失敗", className: "bg-red-500/20 text-red-300 border-red-400/30" };
+  if (s.status === "error") return { status: "error", label: "⚠️ 異常", className: "bg-orange-500/20 text-orange-300 border-orange-400/30" };
+  if (s.status === "pending") return { status: "pending", label: "⏳ 等待", className: "bg-yellow-500/20 text-yellow-300 border-yellow-400/30" };
   return { status: "pending", label: "⏳ 等待", className: "bg-yellow-500/20 text-yellow-300 border-yellow-400/30" };
 }
 
@@ -209,7 +210,24 @@ export default function SchedulePage() {
     const slots: ScheduleSlot[] = [];
     for (const jobDef of CRON_JOBS) {
       const jobSlots = getAllSlots(jobDef);
-      const liveJob = liveJobs.find((lj) => lj.name === jobDef.name || lj.name.includes(jobDef.name) || lj.id === jobDef.id);
+      const liveJob = liveJobs.find((lj) => {
+          const ln = lj.name?.toLowerCase() ?? "";
+          const dn = jobDef.name?.toLowerCase() ?? "";
+          return lj.id === jobDef.id || lj.name === jobDef.name ||
+            ln.includes(dn) || dn.includes(ln) ||
+            (jobDef.id === "pp-mimi-check" && ln.includes("mimivsjames")) ||
+            (jobDef.id === "pp-mimi-nb-06" && ln.includes("notebooklm") && ln.includes("06")) ||
+            (jobDef.id === "pp-mimi-nb-15" && ln.includes("notebooklm") && ln.includes("15")) ||
+            (jobDef.id === "pp-yu-nb" && ln.includes("yu-notebooklm")) ||
+            (jobDef.id === "pp-close-summary" && ln.includes("收盤總結")) ||
+            (jobDef.id === "pp-news" && ln.includes("新聞")) ||
+            (jobDef.id === "pp-premarket" && ln.includes("盤前報告")) ||
+            (jobDef.id === "pp-nak-doj" && ln.includes("nak")) ||
+            (ln.includes("盤前準備") && dn.includes("盤前準備")) ||
+            (ln.includes("週末總結") && dn.includes("週末總結")) ||
+            (ln.includes("盤後反思") && dn.includes("盤後反思")) ||
+            (lj.schedule?.expr === jobDef.schedule && lj.agentId === jobDef.agentId);
+        });
       for (const s of jobSlots) {
         s.liveJob = liveJob;
         slots.push(s);
