@@ -18,6 +18,7 @@ interface FMPQuote {
 }
 
 async function getFMPApiKey(): Promise<string> {
+  if (process.env.FMP_API_KEY) return process.env.FMP_API_KEY;
   const keyPath = path.join(homedir(), ".config/fmp/api_key");
   return (await fs.readFile(keyPath, "utf-8")).trim();
 }

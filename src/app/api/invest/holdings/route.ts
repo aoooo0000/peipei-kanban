@@ -29,18 +29,41 @@ interface FMPQuote {
 }
 
 async function getMyWealthConfig(): Promise<MyWealthConfig> {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    const config: MyWealthConfig = {
+      supabase_url: process.env.SUPABASE_URL,
+      anon_key: process.env.SUPABASE_ANON_KEY,
+      access_token: "",
+      email: process.env.SUPABASE_EMAIL || "",
+      password: process.env.SUPABASE_PASSWORD || "",
+    };
+    // Login to get fresh access token
+    if (config.email && config.password) {
+      const res = await fetch(`${config.supabase_url}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: { apikey: config.anon_key, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: config.email, password: config.password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        config.access_token = data.access_token;
+      }
+    }
+    return config;
+  }
   const configPath = path.join(homedir(), ".config/mywealth/config.json");
   const configData = await fs.readFile(configPath, "utf-8");
   return JSON.parse(configData);
 }
 
 async function getFMPApiKey(): Promise<string> {
+  if (process.env.FMP_API_KEY) return process.env.FMP_API_KEY;
   const keyPath = path.join(homedir(), ".config/fmp/api_key");
   return (await fs.readFile(keyPath, "utf-8")).trim();
 }
 
 async function fetchTransactions(config: MyWealthConfig): Promise<Transaction[]> {
-  const res = await fetch(`${config.supabase_url}/rest/v1/transactions?select=*&order=date.desc`, {
+  const res = await fetch(`${config.supabase_url}/rest/v1/user_data?select=data&data_type=eq.transactions`, {
     headers: {
       apikey: config.anon_key,
       Authorization: `Bearer ${config.access_token}`,
@@ -51,7 +74,11 @@ async function fetchTransactions(config: MyWealthConfig): Promise<Transaction[]>
     throw new Error("Failed to fetch transactions");
   }
 
-  return res.json();
+  const rows = await res.json();
+  if (rows.length > 0 && Array.isArray(rows[0].data)) {
+    return rows[0].data;
+  }
+  return [];
 }
 
 async function fetchFMPQuote(symbol: string, apiKey: string): Promise<FMPQuote | null> {
