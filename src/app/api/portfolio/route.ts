@@ -61,6 +61,38 @@ async function fetchQuotes(symbols: string[], apiKey: string): Promise<Map<strin
   return map;
 }
 
+async function fetchTWQuotes(symbols: string[]): Promise<Map<string, QuoteItem>> {
+  if (!symbols.length) return new Map();
+  const token = process.env.FINMIND_TOKEN;
+  if (!token) return new Map();
+  const map = new Map<string, QuoteItem>();
+  // FinMind doesn't support batch, query one by one (but fast)
+  const today = new Date();
+  const startDate = new Date(today.getTime() - 10 * 86400000).toISOString().slice(0, 10);
+  await Promise.all(symbols.map(async (sym) => {
+    try {
+      const params = new URLSearchParams({
+        dataset: "TaiwanStockPrice",
+        data_id: sym,
+        start_date: startDate,
+        token,
+      });
+      const res = await fetch(`https://api.finmindtrade.com/api/v4/data?${params}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      const rows = json?.data;
+      if (!rows?.length) return;
+      const last = rows[rows.length - 1];
+      const prev = rows.length > 1 ? rows[rows.length - 2] : null;
+      const close = toNumber(last.close);
+      const prevClose = prev ? toNumber(prev.close) : close;
+      const changePct = prevClose > 0 ? ((close - prevClose) / prevClose) * 100 : 0;
+      map.set(sym, { symbol: sym, price: close, changesPercentage: changePct });
+    } catch { /* skip */ }
+  }));
+  return map;
+}
+
 export async function GET() {
   try {
     const fmpKey = process.env.FMP_API_KEY;
@@ -100,16 +132,19 @@ export async function GET() {
     }
 
     const activeLots = [...lots.values()].filter((l) => l.qty > 0.000001);
-    // For TW stocks, query FMP with .TW suffix
     const usSymbols = activeLots.filter((l) => l.currency !== "TWD").map((l) => l.symbol);
-    const twSymbols = activeLots.filter((l) => l.currency === "TWD").map((l) => l.symbol + ".TW");
-    const allSymbols = [...usSymbols, ...twSymbols];
-    const rawQuoteMap = await fetchQuotes(allSymbols, fmpKey);
-    // Normalize: map "0050.TW" back to "0050"
+    const twSymbols = activeLots.filter((l) => l.currency === "TWD").map((l) => l.symbol);
+
+    // Fetch US quotes from FMP, TW quotes from FinMind
+    const [usQuoteMap, twQuoteMap] = await Promise.all([
+      fetchQuotes(usSymbols, fmpKey),
+      fetchTWQuotes(twSymbols),
+    ]);
+
+    // Merge into one map
     const quoteMap = new Map<string, QuoteItem>();
-    for (const [k, v] of rawQuoteMap) {
-      quoteMap.set(k.replace(".TW", ""), v);
-    }
+    for (const [k, v] of usQuoteMap) quoteMap.set(k, v);
+    for (const [k, v] of twQuoteMap) quoteMap.set(k, v);
 
     const holdings: HoldingSnapshot[] = activeLots.map((lot) => {
       const quote = quoteMap.get(lot.symbol);
