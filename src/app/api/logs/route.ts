@@ -1,59 +1,54 @@
 import { NextResponse } from "next/server";
 
-type LogType = "agent" | "task" | "system";
+export const dynamic = "force-dynamic";
 
 interface LogEntry {
   id: string;
   timestamp: string;
-  type: LogType;
+  type: string;
   title: string;
   description: string;
+  agentId?: string;
 }
 
-function getDemoLogs(): LogEntry[] {
-  const now = Date.now();
-  return [
-    {
-      id: "log-1",
-      timestamp: new Date(now - 2 * 60 * 1000).toISOString(),
-      type: "agent",
-      title: "Peipei 完成晨間檢查",
-      description: "同步 Notion 任務資料庫，狀態看板已更新。",
-    },
-    {
-      id: "log-2",
-      timestamp: new Date(now - 8 * 60 * 1000).toISOString(),
-      type: "task",
-      title: "新增任務：整理投資月報",
-      description: "已指派給 Andy，優先級為 🟡 中，預計今晚完成。",
-    },
-    {
-      id: "log-3",
-      timestamp: new Date(now - 16 * 60 * 1000).toISOString(),
-      type: "system",
-      title: "系統排程成功執行",
-      description: "每日資料同步 job 執行完畢，耗時 3.2 秒。",
-    },
-    {
-      id: "log-4",
-      timestamp: new Date(now - 25 * 60 * 1000).toISOString(),
-      type: "agent",
-      title: "Coder 部署前端調整",
-      description: "Phase 2 UI 調整上線至預覽環境，等待驗收。",
-    },
-    {
-      id: "log-5",
-      timestamp: new Date(now - 40 * 60 * 1000).toISOString(),
-      type: "task",
-      title: "任務狀態變更：看板拖拽功能",
-      description: "由 To-do 移動到 進行中，已送出 API 更新。",
-    },
-  ];
+async function fetchFromSupabase(): Promise<LogEntry[] | null> {
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  const email = process.env.SUPABASE_EMAIL;
+  const password = process.env.SUPABASE_PASSWORD;
+  if (!url || !anonKey || !email || !password) return null;
+
+  try {
+    const authRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { apikey: anonKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!authRes.ok) return null;
+    const { access_token } = await authRes.json();
+
+    const res = await fetch(`${url}/rest/v1/user_data?data_type=eq.activityLogs&select=data`, {
+      headers: { apikey: anonKey, Authorization: `Bearer ${access_token}` },
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (rows.length > 0 && Array.isArray(rows[0].data)) {
+      return rows[0].data as LogEntry[];
+    }
+  } catch {
+    // fall through
+  }
+  return null;
 }
 
 export async function GET() {
   try {
-    return NextResponse.json({ logs: getDemoLogs() });
+    const logs = await fetchFromSupabase();
+    if (logs) {
+      return NextResponse.json({ logs });
+    }
+    // Fallback: empty
+    return NextResponse.json({ logs: [] });
   } catch (error) {
     console.error("GET /api/logs error", error);
     return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
