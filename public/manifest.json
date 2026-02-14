@@ -1,7 +1,7 @@
 {
   "name": "霈霈豬看板",
   "short_name": "霈霈看板",
-  "description": "AI Agent 儀表板 — 任務管理、狀態追蹤、文件瀏覽",
+  "description": "AI Agent 儀表板 — 任務管理、狀態追蹤、投資監控",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1420",
@@ -19,6 +19,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

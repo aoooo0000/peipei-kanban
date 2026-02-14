@@ -9,7 +9,10 @@ export const metadata: Metadata = {
   title: "🐷 霈霈豬儀表板",
   description: "Notion + OpenClaw Integrated Dashboard PWA",
   manifest: "/manifest.json",
-  icons: [{ rel: "apple-touch-icon", url: "/icons/icon-192.png" }],
+  icons: [
+    { rel: "icon", url: "/favicon.ico" },
+    { rel: "apple-touch-icon", url: "/icons/apple-touch-icon.png", sizes: "180x180" },
+  ],
 };
 
 export const viewport: Viewport = {
