@@ -20,6 +20,14 @@ interface CronJob {
   state?: { nextRunAtMs?: number; lastRunAtMs?: number; lastStatus?: string; lastDurationMs?: number; lastError?: string };
 }
 
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  type: string;
+  title: string;
+  description: string;
+}
+
 const AGENT_META: Record<string, { emoji: string; label: string; color: string; bg: string; border: string }> = {
   main: { emoji: "🐷", label: "霈霈豬", color: "text-indigo-300", bg: "bg-indigo-500/20", border: "border-indigo-400/40" },
   "trading-lab": { emoji: "📈", label: "Trading Lab", color: "text-emerald-300", bg: "bg-emerald-500/20", border: "border-emerald-400/40" },
@@ -182,10 +190,33 @@ function getStatusForDate(slot: ScheduleSlot, selectedDate: Date, todayKey: stri
   return { status: "pending", label: "⏳ 等待", className: "bg-yellow-500/20 text-yellow-300 border-yellow-400/30" };
 }
 
+function logMatchesJob(log: LogEntry, jobName: string): boolean {
+  const q = jobName.toLowerCase();
+  return [log.title, log.description, log.type].some((field) => (field || "").toLowerCase().includes(q));
+}
+
+function parseLogStatus(log: LogEntry): "ok" | "error" {
+  const text = `${log.title} ${log.description} ${log.type}`.toLowerCase();
+  return text.includes("error") || text.includes("fail") || text.includes("失敗") || text.includes("異常") ? "error" : "ok";
+}
+
+function parseDurationMs(log: LogEntry): number | null {
+  const text = `${log.title} ${log.description}`;
+  const ms = text.match(/(\d+)\s*ms/i);
+  if (ms) return Number(ms[1]);
+  const sec = text.match(/(\d+(?:\.\d+)?)\s*s(?:ec(?:ond)?s?)?/i);
+  if (sec) return Math.round(Number(sec[1]) * 1000);
+  const chineseSec = text.match(/耗時[:：]?\s*(\d+(?:\.\d+)?)\s*秒/);
+  if (chineseSec) return Math.round(Number(chineseSec[1]) * 1000);
+  return null;
+}
+
 export default function SchedulePage() {
   const { data, error, mutate } = useSWR<{ jobs: CronJob[] }>("/api/cron/jobs", fetcher, { refreshInterval: 30000 });
+  const { data: logsData } = useSWR<{ logs: LogEntry[] }>("/api/logs", fetcher, { refreshInterval: 30000 });
   const [agentFilter, setAgentFilter] = useState<AgentFilter>("all");
   const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
   const taipeiToday = getTaipeiNow();
   const [selectedDateKey, setSelectedDateKey] = useState(getDateKey(taipeiToday));
@@ -238,6 +269,19 @@ export default function SchedulePage() {
     }
     return slots;
   }, [data?.jobs]);
+
+  const logsByJobName = useMemo(() => {
+    const logs = logsData?.logs ?? [];
+    const map = new Map<string, LogEntry[]>();
+    for (const job of CRON_JOBS) {
+      const matched = logs
+        .filter((log) => logMatchesJob(log, job.name))
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 3);
+      map.set(job.id, matched);
+    }
+    return map;
+  }, [logsData?.logs]);
 
   const filteredSlots = useMemo(() => {
     if (agentFilter === "all") return allSlots;
@@ -330,25 +374,49 @@ export default function SchedulePage() {
               {mobileDaySlots.map((slot, idx) => {
                 const meta = AGENT_META[slot.job.agentId] || AGENT_META.main;
                 const badge = getStatusForDate(slot, selectedDate, getDateKey(taipeiToday));
+                const logs = logsByJobName.get(slot.job.id) ?? [];
+                const expanded = expandedJobId === `${slot.job.id}-${idx}`;
                 return (
-                  <button
-                    key={`${slot.job.id}-${slot.hour}-${slot.minute}-${idx}`}
-                    onClick={() => setSelectedSlot(slot)}
-                    className={`w-full text-left rounded-xl border p-3 ${meta.bg} ${meta.border}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-mono text-zinc-200">{fmtTime(slot.hour, slot.minute)}</div>
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span>{meta.emoji}</span>
-                          <span className={`text-sm font-medium ${meta.color}`}>{slot.job.name}</span>
+                  <div key={`${slot.job.id}-${slot.hour}-${slot.minute}-${idx}`} className={`rounded-xl border ${meta.bg} ${meta.border}`}>
+                    <button
+                      onClick={() => setExpandedJobId(expanded ? null : `${slot.job.id}-${idx}`)}
+                      className="w-full text-left p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-mono text-zinc-200">{fmtTime(slot.hour, slot.minute)}</div>
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span>{meta.emoji}</span>
+                            <span className={`text-sm font-medium ${meta.color}`}>{slot.job.name}</span>
+                          </div>
+                        </div>
+                        <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      </div>
+                    </button>
+                    <div className={`grid transition-all duration-300 ${expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                      <div className="overflow-hidden px-3 pb-3">
+                        <div className="rounded-lg border border-white/10 bg-black/25 p-2">
+                          <p className="text-[11px] text-zinc-400 mb-1">最近 3 次執行</p>
+                          {logs.length === 0 && <p className="text-xs text-zinc-500">暫無紀錄</p>}
+                          <div className="space-y-1.5">
+                            {logs.map((log) => {
+                              const status = parseLogStatus(log);
+                              const durationMs = parseDurationMs(log);
+                              return (
+                                <div key={log.id} className="text-xs flex items-center justify-between gap-2">
+                                  <span className="text-zinc-300">{new Date(log.timestamp).toLocaleString("zh-TW", { hour12: false })}</span>
+                                  <span className={status === "ok" ? "text-green-300" : "text-rose-300"}>{status === "ok" ? "✅" : "❌"}</span>
+                                  <span className="text-zinc-400">{durationMs ? fmtDuration(durationMs) : "-"}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
-                      <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] ${badge.className}`}>
-                        {badge.label}
-                      </span>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
 
@@ -496,6 +564,24 @@ export default function SchedulePage() {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-xl bg-black/20 p-3 border border-white/5">
+                <div className="text-xs text-zinc-500 mb-2">最近 3 次執行紀錄</div>
+                <div className="space-y-2">
+                  {(logsByJobName.get(selectedSlot.job.id) ?? []).map((log) => {
+                    const status = parseLogStatus(log);
+                    const durationMs = parseDurationMs(log);
+                    return (
+                      <div key={log.id} className="text-xs flex items-center justify-between gap-2 border-b border-white/5 pb-2">
+                        <span className="text-zinc-300">{new Date(log.timestamp).toLocaleString("zh-TW", { hour12: false })}</span>
+                        <span className={status === "ok" ? "text-green-300" : "text-rose-300"}>{status === "ok" ? "✅" : "❌"}</span>
+                        <span className="text-zinc-400">{durationMs ? fmtDuration(durationMs) : "-"}</span>
+                      </div>
+                    );
+                  })}
+                  {(logsByJobName.get(selectedSlot.job.id) ?? []).length === 0 && <div className="text-xs text-zinc-500">暫無紀錄</div>}
+                </div>
+              </div>
             </div>
 
             <div className="p-4 border-t border-white/10">

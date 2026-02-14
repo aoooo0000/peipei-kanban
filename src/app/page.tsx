@@ -38,6 +38,34 @@ interface Reminder {
   urgency: "high" | "medium" | "low";
 }
 
+interface PortfolioHolding {
+  symbol: string;
+  qty: number;
+  avgCost: number;
+  currentPrice: number;
+  value: number;
+  cost: number;
+  pnl: number;
+  pnlPct: number;
+  dayChangePct: number;
+  currency: string;
+}
+
+interface PortfolioSummary {
+  currency: string;
+  totalValue: number;
+  totalCost: number;
+  totalPnl: number;
+  totalPnlPct: number;
+  dayPnl: number;
+}
+
+interface PortfolioResponse {
+  summary: PortfolioSummary[];
+  holdings: PortfolioHolding[];
+  updatedAt: string;
+}
+
 const QUICK_ACTIONS = [
   { href: "/dashboard", emoji: "📝", label: "新增任務" },
   { href: "/schedule", emoji: "📊", label: "看排程" },
@@ -72,17 +100,29 @@ function formatLastActive(iso: string | null) {
   return `${hours} 小時前`;
 }
 
+function fmtMoney(value: number, currency: string) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency === "TWD" ? "TWD" : "USD",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 export default function Home() {
   const { data: tasksData, error: tasksError, mutate: retryTasks } = useSWR<{ tasks: Array<{ status: string }> }>("/api/tasks", fetcher, { refreshInterval: 15000 });
   const { data: logsData, error: logsError } = useSWR<{ logs: Array<{ id: string; title: string; timestamp: string; type: string }> }>("/api/logs", fetcher, { refreshInterval: 10000 });
   const { data: statusData, error: statusError } = useSWR<StatusResponse>("/api/status", fetcher, { refreshInterval: 10000 });
   const { data: remindersData, error: remindersError } = useSWR<Reminder[]>("/api/reminders", fetcher, { refreshInterval: 30000 });
+  const { data: portfolioData, error: portfolioError } = useSWR<PortfolioResponse>("/api/portfolio", fetcher, { refreshInterval: 30000 });
 
   const todoCount = (tasksData?.tasks ?? []).filter((t) => t.status !== "完成").length;
   const todayScheduleCount = countTodayJobs();
   const recentLogs = (logsData?.logs ?? []).slice(0, 5);
   const reminders = remindersData ?? [];
-  const hasError = tasksError || logsError || statusError || remindersError;
+  const holdings = portfolioData?.holdings ?? [];
+  const usHoldings = holdings.filter((h) => !h.symbol.endsWith(".TW"));
+  const twHoldings = holdings.filter((h) => h.symbol.endsWith(".TW"));
+  const hasError = tasksError || logsError || statusError || remindersError || portfolioError;
 
   return (
     <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp text-white/95">
@@ -92,6 +132,67 @@ export default function Home() {
           <button onClick={() => retryTasks()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs hover:bg-red-500/50">重試</button>
         </section>
       )}
+      <section className="mb-6">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-xl font-bold">📈 持股快照</h2>
+          <span className="text-xs text-white/65">{portfolioData?.updatedAt ? `更新：${new Date(portfolioData.updatedAt).toLocaleTimeString("zh-TW", { hour12: false })}` : ""}</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          {(portfolioData?.summary ?? []).map((s) => {
+            const pnlCls = s.totalPnl >= 0 ? "text-emerald-300" : "text-rose-300";
+            const dayCls = s.dayPnl >= 0 ? "text-emerald-300" : "text-rose-300";
+            return (
+              <div key={s.currency} className="glass-card rounded-2xl p-4 border border-white/10">
+                <p className="text-xs text-white/70">{s.currency} 總市值</p>
+                <p className="text-2xl font-bold mt-1">{fmtMoney(s.totalValue, s.currency)}</p>
+                <p className={`text-sm mt-2 ${pnlCls}`}>總盈虧 {fmtMoney(s.totalPnl, s.currency)} ({s.totalPnlPct.toFixed(2)}%)</p>
+                <p className={`text-xs mt-1 ${dayCls}`}>今日變動 {fmtMoney(s.dayPnl, s.currency)}</p>
+              </div>
+            );
+          })}
+          {!portfolioData && <div className="glass-card rounded-2xl p-4 border border-white/10 skeleton-glass min-h-[110px]" />}
+        </div>
+
+        <div className="glass-card rounded-2xl p-4 border border-white/10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {[
+              { title: "🇺🇸 美股", items: usHoldings },
+              { title: "🇹🇼 台股", items: twHoldings },
+            ].map((group) => {
+              const top5 = group.items.slice(0, 5);
+              return (
+                <div key={group.title}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white/90">{group.title}</h3>
+                    {group.items.length > 5 && <span className="text-xs text-[#9ab0ff]">查看全部 ({group.items.length})</span>}
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {top5.length === 0 && <p className="text-xs text-white/60">目前無持股</p>}
+                    {top5.map((h) => {
+                      const pnlCls = h.pnlPct >= 0 ? "text-emerald-300" : "text-rose-300";
+                      const dayCls = h.dayChangePct >= 0 ? "text-emerald-300" : "text-rose-300";
+                      return (
+                        <div key={`${h.symbol}-${h.currency}`} className="rounded-xl bg-black/20 border border-white/5 px-3 py-2 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">{h.symbol}</p>
+                            <p className="text-xs text-white/65">{h.qty} 股 · 現價 {fmtMoney(h.currentPrice, h.currency)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-sm font-semibold ${pnlCls}`}>{h.pnlPct >= 0 ? "+" : ""}{h.pnlPct.toFixed(2)}%</p>
+                            <p className={`text-xs ${dayCls}`}>今日 {h.dayChangePct >= 0 ? "+" : ""}{h.dayChangePct.toFixed(2)}%</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <section className="mb-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-xl font-bold">Agent 狀態</h2>
