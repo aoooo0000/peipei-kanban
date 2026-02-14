@@ -21,3 +21,15 @@ AI Agent 工作台 — 任務管理、投資追蹤、排程監控一站搞定。
 ## 開發
 npm install
 npm run dev
+
+## Web Push 設定
+1. 產生 VAPID Keys
+```bash
+npx web-push generate-vapid-keys
+```
+2. 設定 Vercel 環境變數（請用 `printf` 避免換行）
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT` (例：`mailto:andy@example.com`)
+3. 需設定 Supabase：`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_EMAIL`, `SUPABASE_PASSWORD`
+4. 到 `/settings` 點「開啟通知」，再點「發送測試通知」驗證
