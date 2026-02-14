@@ -28,6 +28,11 @@ body {
     radial-gradient(640px 320px at 50% 108%, rgba(245, 158, 11, 0.08), transparent 60%),
     linear-gradient(180deg, var(--bg-start), var(--bg-end));
   background-attachment: fixed;
+  min-height: 100vh;
+}
+
+html {
+  background: var(--bg-end);
 }
 
 body::before {
