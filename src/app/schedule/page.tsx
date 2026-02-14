@@ -17,7 +17,7 @@ interface CronJob {
   schedule: { kind: string; expr: string; tz?: string };
   description?: string;
   category?: CronJobDef["category"];
-  state?: { nextRunAtMs?: number; lastRunAtMs?: number; lastStatus?: string; lastDurationMs?: number };
+  state?: { nextRunAtMs?: number; lastRunAtMs?: number; lastStatus?: string; lastDurationMs?: number; lastError?: string };
 }
 
 const AGENT_META: Record<string, { emoji: string; label: string; color: string; bg: string; border: string }> = {
@@ -158,6 +158,9 @@ function getExecutionStatus(slot: ScheduleSlot): { status: "ok" | "error" | "pen
 
   if (isToday) {
     if (liveJob.state.lastStatus === "ok") return { status: "ok", label: "✅ 已執行" };
+    // Announce failures (thread not found etc) = task itself succeeded
+    const errMsg = liveJob.state.lastError || "";
+    if (errMsg.includes("thread not found") || errMsg.includes("sendMessage")) return { status: "ok", label: "✅ 已執行" };
     return { status: "error", label: `❌ ${liveJob.state.lastStatus}` };
   }
   return { status: "skipped", label: "今日未執行" };
