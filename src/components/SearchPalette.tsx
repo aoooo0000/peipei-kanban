@@ -26,10 +26,9 @@ type PaletteItem = {
 
 const PAGES = [
   { path: "/", label: "首頁" },
-  { path: "/dashboard", label: "分析" },
-  { path: "/invest", label: "投資" },
+  { path: "/dashboard", label: "看板" },
+  { path: "/schedule", label: "分析" },
   { path: "/logs", label: "日誌" },
-  { path: "/schedule", label: "排程" },
   { path: "/flow", label: "流程" },
   { path: "/settings", label: "設定" },
 ];

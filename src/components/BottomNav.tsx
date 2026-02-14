@@ -5,8 +5,8 @@ import Link from "next/link";
 
 const TABS = [
   { path: "/", icon: "🏠", label: "首頁" },
-  { path: "/dashboard", icon: "📊", label: "分析" },
-  { path: "/invest", icon: "💰", label: "投資" },
+  { path: "/dashboard", icon: "📋", label: "看板" },
+  { path: "/schedule", icon: "📊", label: "分析" },
   { path: "/logs", icon: "📝", label: "日誌" },
 ];
 

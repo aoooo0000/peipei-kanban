@@ -39,7 +39,7 @@ interface Reminder {
 
 const QUICK_ACTIONS = [
   { href: "/", emoji: "📝", label: "新增任務" },
-  { href: "/invest", emoji: "📊", label: "查持倉" },
+  { href: "/schedule", emoji: "📊", label: "看排程" },
   { href: "/settings", emoji: "⚙️", label: "設定" },
   { action: "search", emoji: "🔍", label: "搜尋" },
 ] as const;
@@ -72,16 +72,14 @@ function formatLastActive(iso: string) {
 export default function Home() {
   const { data: tasksData, error: tasksError, mutate: retryTasks } = useSWR<{ tasks: Array<{ status: string }> }>("/api/tasks", fetcher, { refreshInterval: 15000 });
   const { data: logsData, error: logsError } = useSWR<{ logs: Array<{ id: string; title: string; timestamp: string; type: string }> }>("/api/logs", fetcher, { refreshInterval: 10000 });
-  const { data: holdingsData, error: holdingsError } = useSWR<{ summary: { totalGainLossPercent: number } }>("/api/invest/holdings", fetcher, { refreshInterval: 60000 });
   const { data: statusData, error: statusError } = useSWR<StatusResponse>("/api/status", fetcher, { refreshInterval: 10000 });
   const { data: remindersData, error: remindersError } = useSWR<Reminder[]>("/api/reminders", fetcher, { refreshInterval: 30000 });
 
   const todoCount = (tasksData?.tasks ?? []).filter((t) => t.status !== "完成").length;
   const todayScheduleCount = countTodayJobs();
-  const pnl = holdingsData?.summary?.totalGainLossPercent;
   const recentLogs = (logsData?.logs ?? []).slice(0, 5);
   const reminders = remindersData ?? [];
-  const hasError = tasksError || logsError || holdingsError || statusError || remindersError;
+  const hasError = tasksError || logsError || statusError || remindersError;
 
   return (
     <main className="min-h-screen p-4 md:p-6 pb-24 animate-fadeInUp text-white/95">
@@ -172,15 +170,13 @@ export default function Home() {
             <p className="text-xs text-white/75">📋 待辦任務數</p>
             <p className="text-2xl font-bold mt-1">{todoCount}</p>
           </Link>
-          <Link href="/dashboard" className="glass-card rounded-2xl p-4 border border-white/10">
+          <Link href="/schedule" className="glass-card rounded-2xl p-4 border border-white/10">
             <p className="text-xs text-white/75">⏰ 今日排程數</p>
             <p className="text-2xl font-bold mt-1">{todayScheduleCount}</p>
           </Link>
-          <Link href="/invest" className="glass-card rounded-2xl p-4 border border-white/10">
-            <p className="text-xs text-white/75">📈 持倉概覽</p>
-            <p className={`text-2xl font-bold mt-1 ${pnl !== undefined && pnl < 0 ? "text-red-300" : "text-emerald-300"}`}>
-              {pnl === undefined ? "--" : `${pnl >= 0 ? "+" : ""}${pnl.toFixed(1)}%`}
-            </p>
+          <Link href="/logs" className="glass-card rounded-2xl p-4 border border-white/10">
+            <p className="text-xs text-white/75">📝 今日活動數</p>
+            <p className="text-2xl font-bold mt-1">{recentLogs.length}</p>
           </Link>
         </div>
       </section>

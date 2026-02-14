@@ -33,7 +33,7 @@ export default function GlobalHotkeys() {
 
       if (key === "1") router.push("/");
       if (key === "2") router.push("/dashboard");
-      if (key === "3") router.push("/invest");
+      if (key === "3") router.push("/schedule");
       if (key === "4") router.push("/logs");
       if (key === "n") router.push("/");
     };
