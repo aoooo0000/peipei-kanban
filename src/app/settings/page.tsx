@@ -21,7 +21,7 @@ export default function SettingsPage() {
   const [statusText, setStatusText] = useState<string>("尚未啟用推播通知");
   const [working, setWorking] = useState(false);
 
-  const vapidKey = useMemo(() => process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, []);
+  const vapidKey = useMemo(() => process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BDPq0AXqvG0bIpQoGsrf74pnvADBJALiWnXPCU1OfOu8i7DM0uIBd79iTUxpuCa25QetpNA92jM6IVGgd3Sg0MQ", []);
 
   const enablePushNotifications = async () => {
     try {
