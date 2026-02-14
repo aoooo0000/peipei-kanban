@@ -14,6 +14,7 @@ export default auth((req) => {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/push/send") ||
     pathname.startsWith("/icons") ||
     pathname === "/favicon.ico" ||
     pathname === "/manifest.json" ||
