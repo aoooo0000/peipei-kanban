@@ -51,7 +51,35 @@ export async function supabaseInsertUserData(dataType: string, data: unknown): P
   const session = await getSupabaseSession();
   if (!session) return false;
 
-  const res = await fetch(`${session.url}/rest/v1/user_data`, {
+  // Get user_id from auth
+  const userRes = await fetch(`${session.url}/auth/v1/user`, {
+    headers: { apikey: session.anonKey, Authorization: `Bearer ${session.accessToken}` },
+  });
+  const user = userRes.ok ? await userRes.json() : null;
+  const userId = user?.id;
+
+  // Upsert: try patch first, insert if no row exists
+  const patchRes = await fetch(`${session.url}/rest/v1/user_data?data_type=eq.${encodeURIComponent(dataType)}`, {
+    method: "PATCH",
+    headers: {
+      apikey: session.anonKey,
+      Authorization: `Bearer ${session.accessToken}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({ data }),
+  });
+
+  // Check if patch hit any rows
+  const checkRes = await fetch(`${session.url}/rest/v1/user_data?data_type=eq.${encodeURIComponent(dataType)}&select=id`, {
+    headers: { apikey: session.anonKey, Authorization: `Bearer ${session.accessToken}` },
+  });
+  const existing = checkRes.ok ? await checkRes.json() : [];
+
+  if (existing.length > 0) return patchRes.ok;
+
+  // Insert with user_id
+  const insertRes = await fetch(`${session.url}/rest/v1/user_data`, {
     method: "POST",
     headers: {
       apikey: session.anonKey,
@@ -59,8 +87,8 @@ export async function supabaseInsertUserData(dataType: string, data: unknown): P
       "Content-Type": "application/json",
       Prefer: "return=minimal",
     },
-    body: JSON.stringify({ data_type: dataType, data }),
+    body: JSON.stringify({ data_type: dataType, data, user_id: userId }),
   });
 
-  return res.ok;
+  return insertRes.ok || insertRes.status === 201;
 }
