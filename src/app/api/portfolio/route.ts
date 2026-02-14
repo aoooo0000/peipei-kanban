@@ -10,7 +10,7 @@ interface Transaction {
   price: number;
   date: string;
   totalAmount?: number;
-  currency: "USD" | "TWD" | string;
+  currency?: string | null;
   market?: string;
 }
 
@@ -70,7 +70,7 @@ export async function GET() {
     const txRows = await supabaseGetUserDataByType<Transaction[]>("transactions");
     const transactions = txRows.flat().filter((tx) => tx && tx.symbol && tx.action);
 
-    const lots = new Map<string, { symbol: string; qty: number; cost: number; currency: string }>();
+    const lots = new Map<string, { symbol: string; qty: number; cost: number; currency: string; market: string }>();
 
     for (const tx of transactions) {
       const symbol = tx.symbol.trim().toUpperCase();
@@ -78,8 +78,10 @@ export async function GET() {
       const price = Math.max(0, toNumber(tx.price));
       if (!symbol || qty <= 0 || price <= 0) continue;
 
-      const key = `${symbol}__${(tx.currency || "USD").toUpperCase()}`;
-      const current = lots.get(key) ?? { symbol, qty: 0, cost: 0, currency: (tx.currency || "USD").toUpperCase() };
+      const market = (tx.market || "").toUpperCase();
+      const currency = tx.currency ? tx.currency.toUpperCase() : (market === "TW" ? "TWD" : "USD");
+      const key = `${symbol}__${currency}`;
+      const current = lots.get(key) ?? { symbol, qty: 0, cost: 0, currency, market };
 
       if (tx.action === "BUY") {
         current.cost += qty * price;
@@ -97,8 +99,16 @@ export async function GET() {
     }
 
     const activeLots = [...lots.values()].filter((l) => l.qty > 0.000001);
-    const symbols = [...new Set(activeLots.map((l) => l.symbol))];
-    const quoteMap = await fetchQuotes(symbols, fmpKey);
+    // For TW stocks, query FMP with .TW suffix
+    const usSymbols = activeLots.filter((l) => l.currency !== "TWD").map((l) => l.symbol);
+    const twSymbols = activeLots.filter((l) => l.currency === "TWD").map((l) => l.symbol + ".TW");
+    const allSymbols = [...usSymbols, ...twSymbols];
+    const rawQuoteMap = await fetchQuotes(allSymbols, fmpKey);
+    // Normalize: map "0050.TW" back to "0050"
+    const quoteMap = new Map<string, QuoteItem>();
+    for (const [k, v] of rawQuoteMap) {
+      quoteMap.set(k.replace(".TW", ""), v);
+    }
 
     const holdings: HoldingSnapshot[] = activeLots.map((lot) => {
       const quote = quoteMap.get(lot.symbol);
