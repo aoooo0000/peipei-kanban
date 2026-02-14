@@ -31,6 +31,7 @@ interface HoldingSnapshot {
   pnlPct: number;
   dayChangePct: number;
   currency: string;
+  noQuote?: boolean;
 }
 
 interface CurrencySummary {
@@ -112,11 +113,12 @@ export async function GET() {
 
     const holdings: HoldingSnapshot[] = activeLots.map((lot) => {
       const quote = quoteMap.get(lot.symbol);
+      const hasQuote = !!quote?.price && toNumber(quote.price) > 0;
       const currentPrice = toNumber(quote?.price);
-      const value = lot.qty * currentPrice;
+      const value = hasQuote ? lot.qty * currentPrice : 0;
       const cost = lot.cost;
-      const pnl = value - cost;
-      const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
+      const pnl = hasQuote ? value - cost : 0;
+      const pnlPct = hasQuote && cost > 0 ? (pnl / cost) * 100 : 0;
       const dayChangePct = toNumber(quote?.changesPercentage);
       return {
         symbol: lot.symbol,
@@ -129,11 +131,12 @@ export async function GET() {
         pnlPct,
         dayChangePct,
         currency: lot.currency,
+        noQuote: !hasQuote,
       };
     }).sort((a, b) => b.value - a.value);
 
     const byCurrency = new Map<string, CurrencySummary>();
-    for (const h of holdings) {
+    for (const h of holdings.filter(h => !h.noQuote)) {
       const curr = h.currency || "USD";
       const summary = byCurrency.get(curr) ?? {
         currency: curr,

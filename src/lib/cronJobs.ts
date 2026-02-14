@@ -21,11 +21,7 @@ export const CRON_JOBS: CronJobDef[] = [
   { id: "tl-review", agentId: "trading-lab", name: "盤後反思+學習", schedule: "0 6 * * 2-6", tz: "Asia/Taipei", description: "交易回顧、Mimi 學習、SA 研究、策略優化", category: "trading" },
   { id: "tl-weekly", agentId: "trading-lab", name: "週末總結", schedule: "0 10 * * 6", tz: "Asia/Taipei", description: "本週績效、交易分析、學習進度、下週計畫", category: "trading" },
   { id: "pp-mimi-check", agentId: "main", name: "MimiVsJames 整理", schedule: "30 5,15 * * *", tz: "Asia/Taipei", description: "Gmail 收信 → 分類 → 整理到 Notion（4 個 Gate）", category: "content" },
-  { id: "pp-mimi-nb-06", agentId: "main", name: "NotebookLM 簡報 (AM)", schedule: "0 6 * * *", tz: "Asia/Taipei", description: "Mimi 文章加入 NotebookLM 生成簡報", category: "content" },
-  { id: "pp-mimi-nb-15", agentId: "main", name: "NotebookLM 簡報 (PM)", schedule: "15 15 * * *", tz: "Asia/Taipei", description: "下午場 NotebookLM 簡報", category: "content" },
-  { id: "pp-yu-nb", agentId: "main", name: "游庭皓 NotebookLM", schedule: "45 9 * * 1-5", tz: "Asia/Taipei", description: "YouTube 早晨財經速解讀 → NotebookLM", category: "content" },
   { id: "pp-close-summary", agentId: "main", name: "收盤總結+催化劑", schedule: "0 7 * * 2-6", tz: "Asia/Taipei", description: "三大指數、持股 Top5、重要事件、催化劑提醒", category: "monitoring" },
   { id: "pp-news", agentId: "main", name: "新聞+異動監控", schedule: "0 10,14,18,22 * * *", tz: "Asia/Taipei", description: "持股新聞、市場新聞、異常篩選（>5%通知）", category: "monitoring" },
   { id: "pp-premarket", agentId: "main", name: "盤前報告", schedule: "0 21 * * 1-5", tz: "Asia/Taipei", description: "期指、盤前異動、Mimi 技術分析、Watchlist", category: "monitoring" },
-  { id: "pp-nak-doj", agentId: "main", name: "NAK DOJ 提醒", schedule: "0 9 14 2 *", tz: "Asia/Taipei", description: "Pebble Mine 訴訟 DOJ 回應提醒", category: "other" },
 ];

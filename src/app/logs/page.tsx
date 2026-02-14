@@ -29,7 +29,8 @@ export default function LogsPage() {
 
   const filteredLogs = useMemo(() => {
     const logs = data?.logs ?? [];
-    return filter === "all" ? logs : logs.filter((log) => log.type === filter);
+    const valid = logs.filter((log) => log.title?.trim());
+    return filter === "all" ? valid : valid.filter((log) => log.type === filter);
   }, [filter, data?.logs]);
 
   return (
