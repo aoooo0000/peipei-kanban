@@ -10,6 +10,7 @@ const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
 const STATUS_META = {
   idle: { label: "idle", cls: "status-glow-idle" },
+  working: { label: "working", cls: "status-glow-acting" },
   thinking: { label: "thinking", cls: "status-glow-thinking" },
   acting: { label: "acting", cls: "status-glow-acting" },
 };
@@ -21,7 +22,7 @@ interface AgentStatusItem {
   name: string;
   emoji: string;
   status: AgentState;
-  lastActive: string;
+  lastActive: string | null;
 }
 
 interface StatusResponse {
@@ -38,7 +39,7 @@ interface Reminder {
 }
 
 const QUICK_ACTIONS = [
-  { href: "/", emoji: "📝", label: "新增任務" },
+  { href: "/dashboard", emoji: "📝", label: "新增任務" },
   { href: "/schedule", emoji: "📊", label: "看排程" },
   { href: "/settings", emoji: "⚙️", label: "設定" },
   { action: "search", emoji: "🔍", label: "搜尋" },
@@ -60,8 +61,10 @@ function countTodayJobs() {
   }).length;
 }
 
-function formatLastActive(iso: string) {
+function formatLastActive(iso: string | null) {
+  if (!iso) return "尚無紀錄";
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "尚無紀錄";
   const diffMinutes = Math.max(0, Math.floor((Date.now() - d.getTime()) / 60000));
   if (diffMinutes < 1) return "剛剛";
   if (diffMinutes < 60) return `${diffMinutes} 分鐘前`;
