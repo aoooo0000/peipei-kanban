@@ -1,62 +1,40 @@
 import { NextResponse } from "next/server";
-import { readdir, stat } from "fs/promises";
-import { join } from "path";
+import { supabaseGetFirstData } from "@/lib/supabaseRest";
 
-interface Doc {
+export const dynamic = "force-dynamic";
+
+interface DocFile {
   name: string;
   path: string;
-  category: "System" | "Docs";
+  content: string;
+  updatedAt: string;
   size: number;
-  modified: string;
 }
 
-async function scanDirectory(dir: string, category: "System" | "Docs"): Promise<Doc[]> {
-  const docs: Doc[] = [];
-  
+interface DocsPayload {
+  files: DocFile[];
+  syncedAt?: string;
+}
+
+export async function GET(req: Request) {
   try {
-    const files = await readdir(dir);
-    
-    for (const file of files) {
-      if (!file.endsWith(".md")) continue;
-      
-      const fullPath = join(dir, file);
-      const stats = await stat(fullPath);
-      
-      if (stats.isFile()) {
-        docs.push({
-          name: file,
-          path: fullPath,
-          category,
-          size: stats.size,
-          modified: stats.mtime.toISOString(),
-        });
+    const url = new URL(req.url);
+    const name = url.searchParams.get("name");
+
+    const docsData = await supabaseGetFirstData<DocsPayload>("docs");
+    const files = docsData?.files ?? [];
+
+    if (name) {
+      const target = files.find((f) => f.name === name || f.path === name);
+      if (!target) {
+        return NextResponse.json({ error: "Document not found" }, { status: 404 });
       }
+      return NextResponse.json({ file: target });
     }
-  } catch (error) {
-    console.error(`Failed to scan ${dir}:`, error);
-  }
-  
-  return docs;
-}
 
-export async function GET() {
-  try {
-    const workspaceRoot = join(process.env.HOME || "", "clawd");
-    
-    // 掃描 System 文件（workspace 根目錄）
-    const systemDocs = await scanDirectory(workspaceRoot, "System");
-    
-    // 掃描 Docs 文件（memory 目錄）
-    const memoryDir = join(workspaceRoot, "memory");
-    const docsDocs = await scanDirectory(memoryDir, "Docs");
-    
-    const allDocs = [...systemDocs, ...docsDocs].sort(
-      (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
-    );
-    
-    return NextResponse.json({ docs: allDocs });
+    return NextResponse.json({ files, syncedAt: docsData?.syncedAt ?? null });
   } catch (error) {
-    console.error("Failed to fetch docs:", error);
-    return NextResponse.json({ docs: [] }, { status: 500 });
+    console.error("GET /api/docs error", error);
+    return NextResponse.json({ error: "Failed to fetch docs" }, { status: 500 });
   }
 }

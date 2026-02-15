@@ -8,6 +8,7 @@ const TABS = [
   { path: "/dashboard", icon: "📋", label: "看板" },
   { path: "/schedule", icon: "📊", label: "分析" },
   { path: "/logs", icon: "📝", label: "日誌" },
+  { path: "/docs", icon: "📚", label: "Docs" },
 ];
 
 export default function BottomNav() {

@@ -1,236 +1,121 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import TextSelectionToolbar from "@/components/TextSelectionToolbar";
-import { fetchJSON, fetchWithTimeout } from "@/lib/api";
+import { fetchJSON } from "@/lib/api";
 
 const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
-interface Doc {
+interface DocFile {
   name: string;
   path: string;
-  category: "System" | "Docs";
+  content: string;
+  updatedAt: string;
   size: number;
-  modified: string;
 }
 
-interface SearchMatch {
-  line: number;
-  text: string;
-  context: string;
+interface DocsResponse {
+  files: DocFile[];
+  syncedAt: string | null;
 }
 
-interface SearchResult {
-  path: string;
-  name: string;
-  matches: SearchMatch[];
+const CATEGORY_ORDER = ["系統設定", "記憶", "學習", "投資", "其他"] as const;
+
+function getCategory(file: DocFile): (typeof CATEGORY_ORDER)[number] {
+  const n = file.name.toUpperCase();
+  const p = file.path.toLowerCase();
+
+  if (["AGENTS.MD", "SOUL.MD", "HEARTBEAT.MD"].includes(n)) return "系統設定";
+  if (["MEMORY.MD", "LESSONS.MD", "COMMITMENTS.MD", "OVERNIGHT_REPORT.MD", "TODO_QUEUE.MD"].includes(n)) return "記憶";
+  if (p.includes("learning/") || p.includes("learning\\")) return "學習";
+  if (n === "STOCK_TRACKER.MD" || p.includes("investing/")) return "投資";
+  return "其他";
 }
 
 export default function DocsPage() {
-  const { data, error, mutate } = useSWR<{ docs: Doc[] }>("/api/docs", fetcher);
-  const [selectedDoc, setSelectedDoc] = useState<Doc | null>(null);
-  const [docContent, setDocContent] = useState<string>("");
-  const [filter, setFilter] = useState<"all" | "System" | "Docs">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [pageError, setPageError] = useState<string | null>(null);
+  const { data, error, mutate } = useSWR<DocsResponse>("/api/docs", fetcher, { refreshInterval: 30000 });
+  const files = useMemo(() => data?.files ?? [], [data?.files]);
 
-  const docs = data?.docs ?? [];
-  const filteredDocs = filter === "all" ? docs : docs.filter((d) => d.category === filter);
+  const [selectedName, setSelectedName] = useState<string>("MEMORY.md");
 
-  const loadDoc = async (doc: Doc) => {
-    setSelectedDoc(doc);
-    setPageError(null);
-    try {
-      const res = await fetchWithTimeout(`/api/docs/${encodeURIComponent(doc.path)}`, {}, 9000);
-      const text = await res.text();
-      setDocContent(text);
-    } catch (e) {
-      setPageError(e instanceof Error ? e.message : "讀取文件失敗");
+  const selected = useMemo(() => {
+    if (!files.length) return null;
+    return files.find((f) => f.name === selectedName || f.path === selectedName) ?? files[0];
+  }, [files, selectedName]);
+
+  const grouped = useMemo(() => {
+    const map: Record<string, DocFile[]> = {};
+    for (const cat of CATEGORY_ORDER) map[cat] = [];
+    for (const file of files) {
+      map[getCategory(file)].push(file);
     }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearching(true);
-    try {
-      const data = await fetchJSON<{ results: SearchResult[] }>(`/api/docs/search?q=${encodeURIComponent(searchQuery)}`, 9000);
-      setSearchResults(data.results || []);
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : "搜尋失敗");
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const loadDocByPath = async (docPath: string) => {
-    setPageError(null);
-    try {
-      const res = await fetchWithTimeout(`/api/docs/${encodeURIComponent(docPath)}`, {}, 9000);
-      const text = await res.text();
-      setDocContent(text);
-      setSelectedDoc({ name: docPath.split("/").pop() || docPath, path: docPath, category: "Docs", size: 0, modified: "" });
-      setSearchQuery("");
-      setSearchResults([]);
-    } catch (e) {
-      setPageError(e instanceof Error ? e.message : "讀取文件失敗");
-    }
-  };
-
-  const highlightMatch = (text: string, query: string) => {
-    if (!query) return text;
-    const regex = new RegExp(`(${query})`, "gi");
-    const parts = text.split(regex);
-    return parts.map((part, idx) =>
-      regex.test(part) ? (
-        <mark key={idx} className="bg-yellow-400/30 text-yellow-200">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
-  };
+    return map;
+  }, [files]);
 
   return (
     <main className="min-h-screen text-zinc-100 p-4 md:p-6 pb-24 animate-fadeInUp">
-      <TextSelectionToolbar />
-      {(error || pageError) && (
+      {error && (
         <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/15 p-4">
-          <p className="text-sm text-red-100">{pageError || "文件資料載入失敗"}</p>
+          <p className="text-sm text-red-100">文件資料載入失敗。</p>
           <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs">重試</button>
         </div>
       )}
-      <h1 className="text-xl font-bold mb-6">📄 文件</h1>
 
-      {!selectedDoc ? (
-        <>
-          {/* 搜尋框 */}
-          <div className="mb-4 flex gap-2">
-            <input
-              type="text"
-              className="flex-1 rounded-lg bg-zinc-800 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="搜尋所有 .md 文件..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            />
-            <button
-              onClick={handleSearch}
-              disabled={searching || !searchQuery.trim()}
-              className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-50"
-            >
-              {searching ? "..." : "搜尋"}
-            </button>
-          </div>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold">📚 Docs 文件瀏覽器</h1>
+        {data?.syncedAt && <span className="text-xs text-zinc-400">同步：{new Date(data.syncedAt).toLocaleString("zh-TW", { hour12: false })}</span>}
+      </div>
 
-          {/* 搜尋結果 */}
-          {searchResults.length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold mb-3">
-                搜尋結果 ({searchResults.length})
-              </h2>
-              <div className="space-y-2">
-                {searchResults.map((result, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => loadDocByPath(result.path)}
-                    className="w-full text-left rounded-xl bg-[#2a2a3e] p-4 border border-blue-400/30 hover:bg-[#333346] transition-colors"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-white">{result.name}</h3>
-                      <span className="text-xs bg-blue-600/20 text-blue-300 px-2 py-1 rounded">
-                        {result.matches.length} 筆
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-400 mb-2">{result.path}</p>
-                    {result.matches.slice(0, 2).map((match, mIdx) => (
-                      <div key={mIdx} className="text-xs text-zinc-300 bg-zinc-800/50 rounded p-2 mb-1 font-mono">
-                        <span className="text-zinc-500">L{match.line}:</span>{" "}
-                        {highlightMatch(match.text.trim(), searchQuery)}
-                      </div>
-                    ))}
-                  </button>
-                ))}
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
+        <aside className="rounded-2xl border border-white/10 glass-card p-3 max-h-[75vh] overflow-y-auto">
+          {CATEGORY_ORDER.map((cat) => {
+            const items = grouped[cat] ?? [];
+            if (items.length === 0) return null;
+            return (
+              <section key={cat} className="mb-4 last:mb-0">
+                <h2 className="text-xs font-semibold text-zinc-400 mb-2">{cat}</h2>
+                <div className="space-y-1">
+                  {items.map((f) => {
+                    const active = selected?.path === f.path;
+                    return (
+                      <button
+                        key={f.path}
+                        onClick={() => setSelectedName(f.path)}
+                        className={`w-full text-left rounded-lg px-3 py-2 text-sm border transition-colors ${
+                          active
+                            ? "bg-blue-600/25 border-blue-400/40 text-blue-200"
+                            : "bg-black/20 border-white/10 text-zinc-300 hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="truncate">{f.name}</div>
+                        <div className="text-[11px] text-zinc-500 truncate">{f.path}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </aside>
+
+        <section className="rounded-2xl border border-white/10 glass-card p-5 max-h-[75vh] overflow-y-auto">
+          {!selected ? (
+            <div className="text-zinc-400">尚無文件資料</div>
+          ) : (
+            <>
+              <div className="mb-4 pb-3 border-b border-white/10">
+                <h2 className="text-lg font-semibold">{selected.name}</h2>
+                <p className="text-xs text-zinc-500 mt-1">{selected.path} · {selected.size} bytes · {new Date(selected.updatedAt).toLocaleString("zh-TW", { hour12: false })}</p>
               </div>
-            </div>
+              <article className="prose prose-invert prose-sm max-w-none">
+                <Markdown remarkPlugins={[remarkGfm]}>{selected.content || ""}</Markdown>
+              </article>
+            </>
           )}
-
-          {/* 分類篩選 */}
-          <div className="flex gap-2 mb-4">
-            {(["all", "System", "Docs"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === f
-                    ? "bg-blue-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                }`}
-              >
-                {f === "all" ? "全部" : f}
-              </button>
-            ))}
-          </div>
-
-          {/* 文件列表 */}
-          <div className="space-y-2">
-            {filteredDocs.length === 0 ? (
-              <div className="text-center text-zinc-500 py-12">
-                {data ? "沒有找到文件" : "載入中..."}
-              </div>
-            ) : (
-              filteredDocs.map((doc) => (
-                <button
-                  key={doc.path}
-                  onClick={() => loadDoc(doc)}
-                  className="w-full text-left rounded-xl bg-[#2a2a3e] p-4 border border-white/10 hover:bg-[#333346] transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-white mb-1">{doc.name}</h3>
-                      <p className="text-xs text-zinc-400">{doc.path}</p>
-                    </div>
-                    <span className="text-xs bg-blue-600/20 text-blue-300 px-2 py-1 rounded">
-                      {doc.category}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs text-zinc-500">
-                    {new Date(doc.modified).toLocaleString("zh-TW")}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* 返回按鈕 */}
-          <button
-            onClick={() => setSelectedDoc(null)}
-            className="mb-4 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm"
-          >
-            ← 返回列表
-          </button>
-
-          {/* 文件內容 */}
-          <div className="rounded-2xl bg-[#2a2a3e] p-6 border border-white/10">
-            <h2 className="text-xl font-bold mb-4">{selectedDoc.name}</h2>
-            <div className="prose prose-invert prose-sm max-w-none">
-              <Markdown remarkPlugins={[remarkGfm]}>{docContent}</Markdown>
-            </div>
-          </div>
-        </>
-      )}
+        </section>
+      </div>
     </main>
   );
 }
