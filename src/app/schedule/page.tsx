@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { CRON_JOBS, type CronJobDef } from "@/lib/cronJobs";
 import { fetchJSON } from "@/lib/api";
 
 const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
@@ -13,11 +12,14 @@ interface CronJob {
   id: string;
   agentId: string;
   name: string;
+  schedule: string;
+  tz: string;
   enabled: boolean;
-  schedule: { kind: string; expr: string; tz?: string };
-  description?: string;
-  category?: CronJobDef["category"];
-  state?: { nextRunAtMs?: number; lastRunAtMs?: number; lastStatus?: string; lastDurationMs?: number; lastError?: string };
+  lastStatus: string;
+  lastRunAtMs?: number;
+  nextRunAtMs?: number;
+  lastDurationMs?: number;
+  consecutiveErrors: number;
 }
 
 interface LogEntry {
@@ -39,8 +41,7 @@ const DAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const CRON_DOW_TO_IDX: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
 
 interface ScheduleSlot {
-  job: CronJobDef;
-  liveJob?: CronJob;
+  job: CronJob;
   hour: number;
   minute: number;
   dayIndices: number[];
@@ -48,13 +49,13 @@ interface ScheduleSlot {
   specialDateDesc?: string;
 }
 
-function parseCronSchedule(job: CronJobDef): ScheduleSlot {
+function parseCronSchedule(job: CronJob): ScheduleSlot {
   const parts = job.schedule.split(" ");
   const minute = parseInt(parts[0]) || 0;
-  const hour = (parts[1].split(",").map(Number))[0];
-  const dayOfMonth = parts[2];
-  const month = parts[3];
-  const dayOfWeek = parts[4];
+  const hour = (parts[1]?.split(",").map(Number))[0] ?? 0;
+  const dayOfMonth = parts[2] || "*";
+  const month = parts[3] || "*";
+  const dayOfWeek = parts[4] || "*";
 
   if (dayOfMonth !== "*" && month !== "*") {
     return {
@@ -85,10 +86,10 @@ function parseCronSchedule(job: CronJobDef): ScheduleSlot {
   return { job, hour, minute, dayIndices: indices, isSpecialDate: false };
 }
 
-function getAllSlots(job: CronJobDef): ScheduleSlot[] {
+function getAllSlots(job: CronJob): ScheduleSlot[] {
   const parts = job.schedule.split(" ");
-  const hours = parts[1].split(",").map(Number);
-  const minutes = parts[0].split(",").map(Number);
+  const hours = (parts[1] || "0").split(",").map(Number);
+  const minutes = (parts[0] || "0").split(",").map(Number);
 
   if (hours.length <= 1 && minutes.length <= 1) return [parseCronSchedule(job)];
 
@@ -149,10 +150,9 @@ function getCurrentTimeLinePercent(timeSlots: Array<[string, ScheduleSlot[]]>) {
 }
 
 function getExecutionStatus(slot: ScheduleSlot): { status: "ok" | "error" | "pending" | "skipped" | "unknown"; label: string } {
-  const liveJob = slot.liveJob;
-  if (!liveJob?.state?.lastRunAtMs) return { status: "unknown", label: "尚未執行" };
+  if (!slot.job.lastRunAtMs) return { status: "unknown", label: "尚未執行" };
 
-  const lastRun = new Date(liveJob.state.lastRunAtMs);
+  const lastRun = new Date(slot.job.lastRunAtMs);
   const taipeiNow = getTaipeiNow();
   const taipeiLastRun = new Date(lastRun.toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
   const isToday = taipeiNow.toDateString() === taipeiLastRun.toDateString();
@@ -166,11 +166,8 @@ function getExecutionStatus(slot: ScheduleSlot): { status: "ok" | "error" | "pen
   if (currentMinutes < scheduledMinutes) return { status: "pending", label: "等待執行" };
 
   if (isToday) {
-    if (liveJob.state.lastStatus === "ok") return { status: "ok", label: "✅ 已執行" };
-    // Announce failures (thread not found etc) = task itself succeeded
-    const errMsg = liveJob.state.lastError || "";
-    if (errMsg.includes("thread not found") || errMsg.includes("sendMessage")) return { status: "ok", label: "✅ 已執行" };
-    return { status: "error", label: `❌ ${liveJob.state.lastStatus}` };
+    if (slot.job.lastStatus === "ok") return { status: "ok", label: "✅ 已執行" };
+    return { status: "error", label: `❌ ${slot.job.lastStatus || "error"}` };
   }
   return { status: "skipped", label: "今日未執行" };
 }
@@ -187,13 +184,12 @@ function getStatusForDate(slot: ScheduleSlot, selectedDate: Date, todayKey: stri
   const s = getExecutionStatus(slot);
   if (s.status === "ok") return { status: "ok", label: "✅ 已執行", className: "bg-green-500/20 text-green-300 border-green-400/30" };
   if (s.status === "error") return { status: "error", label: "⚠️ 異常", className: "bg-orange-500/20 text-orange-300 border-orange-400/30" };
-  if (s.status === "pending") return { status: "pending", label: "⏳ 等待", className: "bg-yellow-500/20 text-yellow-300 border-yellow-400/30" };
   return { status: "pending", label: "⏳ 等待", className: "bg-yellow-500/20 text-yellow-300 border-yellow-400/30" };
 }
 
-function logMatchesJob(log: LogEntry, jobName: string): boolean {
-  const q = jobName.toLowerCase();
-  return [log.title, log.description, log.type].some((field) => (field || "").toLowerCase().includes(q));
+function logMatchesJob(log: LogEntry, job: CronJob): boolean {
+  const text = `${log.title} ${log.description} ${log.type}`.toLowerCase();
+  return text.includes((job.name || "").toLowerCase()) || text.includes((job.id || "").toLowerCase());
 }
 
 function parseLogStatus(log: LogEntry): "ok" | "error" {
@@ -243,30 +239,9 @@ export default function SchedulePage() {
   const allSlots = useMemo(() => {
     const liveJobs = data?.jobs ?? [];
     const slots: ScheduleSlot[] = [];
-    for (const jobDef of CRON_JOBS) {
-      const jobSlots = getAllSlots(jobDef);
-      const liveJob = liveJobs.find((lj) => {
-          const ln = lj.name?.toLowerCase() ?? "";
-          const dn = jobDef.name?.toLowerCase() ?? "";
-          return lj.id === jobDef.id || lj.name === jobDef.name ||
-            ln.includes(dn) || dn.includes(ln) ||
-            (jobDef.id === "pp-mimi-check" && ln.includes("mimivsjames")) ||
-            (jobDef.id === "pp-mimi-nb-06" && ln.includes("notebooklm") && ln.includes("06")) ||
-            (jobDef.id === "pp-mimi-nb-15" && ln.includes("notebooklm") && ln.includes("15")) ||
-            (jobDef.id === "pp-yu-nb" && ln.includes("yu-notebooklm")) ||
-            (jobDef.id === "pp-close-summary" && ln.includes("收盤總結")) ||
-            (jobDef.id === "pp-news" && ln.includes("新聞")) ||
-            (jobDef.id === "pp-premarket" && ln.includes("盤前報告")) ||
-            (jobDef.id === "pp-nak-doj" && ln.includes("nak")) ||
-            (ln.includes("盤前準備") && dn.includes("盤前準備")) ||
-            (ln.includes("週末總結") && dn.includes("週末總結")) ||
-            (ln.includes("盤後反思") && dn.includes("盤後反思")) ||
-            (lj.schedule?.expr === jobDef.schedule && lj.agentId === jobDef.agentId);
-        });
-      for (const s of jobSlots) {
-        s.liveJob = liveJob;
-        slots.push(s);
-      }
+    for (const job of liveJobs) {
+      const jobSlots = getAllSlots(job);
+      slots.push(...jobSlots);
     }
     return slots;
   }, [data?.jobs]);
@@ -274,15 +249,15 @@ export default function SchedulePage() {
   const logsByJobName = useMemo(() => {
     const logs = logsData?.logs ?? [];
     const map = new Map<string, LogEntry[]>();
-    for (const job of CRON_JOBS) {
+    for (const job of data?.jobs ?? []) {
       const matched = logs
-        .filter((log) => logMatchesJob(log, job.name))
+        .filter((log) => logMatchesJob(log, job))
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 3);
       map.set(job.id, matched);
     }
     return map;
-  }, [logsData?.logs]);
+  }, [logsData?.logs, data?.jobs]);
 
   const filteredSlots = useMemo(() => {
     if (agentFilter === "all") return allSlots;
@@ -481,7 +456,7 @@ export default function SchedulePage() {
                                 )}
                               </div>
                               <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 hidden group-hover:block rounded-md bg-black/85 border border-white/15 px-2 py-1 text-[10px] whitespace-nowrap">
-                                {slot.job.description || slot.job.name}
+                                {slot.job.name}
                               </span>
                             </button>
                           );
@@ -511,7 +486,7 @@ export default function SchedulePage() {
                       <span className="text-lg">{meta.emoji}</span>
                       <div>
                         <div className={`font-semibold ${meta.color}`}>{slot.job.name}</div>
-                        <div className="text-xs text-zinc-400 mt-0.5">{slot.job.description}</div>
+                        <div className="text-xs text-zinc-400 mt-0.5">{slot.job.schedule}</div>
                       </div>
                     </div>
                     <div className="text-sm font-mono text-zinc-300">{slot.specialDateDesc}</div>
@@ -539,11 +514,6 @@ export default function SchedulePage() {
             </div>
 
             <div className="p-4 space-y-4">
-              <div>
-                <div className="text-xs text-zinc-500 mb-1">描述</div>
-                <div className="text-sm text-zinc-200">{selectedSlot.job.description}</div>
-              </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-xs text-zinc-500 mb-1">排程</div>
@@ -555,17 +525,16 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              {selectedSlot.liveJob?.state && (
-                <div className="rounded-xl bg-black/20 p-3 border border-white/5">
-                  <div className="text-xs text-zinc-500 mb-2">執行狀態（即時）</div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div><span className="text-zinc-500">上次執行：</span><span className="text-zinc-200">{fmtDate(selectedSlot.liveJob.state.lastRunAtMs)}</span></div>
-                    <div><span className="text-zinc-500">狀態：</span><span className={selectedSlot.liveJob.state.lastStatus === "ok" ? "text-green-400" : "text-red-400"}>{selectedSlot.liveJob.state.lastStatus === "ok" ? "🟢 成功" : `🔴 ${selectedSlot.liveJob.state.lastStatus}`}</span></div>
-                    <div><span className="text-zinc-500">耗時：</span><span className="text-zinc-200">{fmtDuration(selectedSlot.liveJob.state.lastDurationMs)}</span></div>
-                    <div><span className="text-zinc-500">下次執行：</span><span className="text-zinc-200">{fmtDate(selectedSlot.liveJob.state.nextRunAtMs)}</span></div>
-                  </div>
+              <div className="rounded-xl bg-black/20 p-3 border border-white/5">
+                <div className="text-xs text-zinc-500 mb-2">執行狀態（即時）</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-zinc-500">上次執行：</span><span className="text-zinc-200">{fmtDate(selectedSlot.job.lastRunAtMs)}</span></div>
+                  <div><span className="text-zinc-500">狀態：</span><span className={selectedSlot.job.lastStatus === "ok" ? "text-green-400" : "text-red-400"}>{selectedSlot.job.lastStatus === "ok" ? "🟢 成功" : `🔴 ${selectedSlot.job.lastStatus}`}</span></div>
+                  <div><span className="text-zinc-500">耗時：</span><span className="text-zinc-200">{fmtDuration(selectedSlot.job.lastDurationMs)}</span></div>
+                  <div><span className="text-zinc-500">下次執行：</span><span className="text-zinc-200">{fmtDate(selectedSlot.job.nextRunAtMs)}</span></div>
+                  <div><span className="text-zinc-500">連續錯誤：</span><span className="text-zinc-200">{selectedSlot.job.consecutiveErrors}</span></div>
                 </div>
-              )}
+              </div>
 
               <div className="rounded-xl bg-black/20 p-3 border border-white/5">
                 <div className="text-xs text-zinc-500 mb-2">最近 3 次執行紀錄</div>

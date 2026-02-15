@@ -8,6 +8,7 @@ export interface CronJobDef {
   category: "trading" | "content" | "monitoring" | "other";
 }
 
+/** @deprecated Schedule page now reads real-time jobs from Supabase (`/api/cron/jobs`). */
 export const CRON_JOBS: CronJobDef[] = [
   { id: "tl-premarket", agentId: "trading-lab", name: "盤前準備", schedule: "0 21 * * 1-5", tz: "Asia/Taipei", description: "同步 Notion、掃描 Watchlist、風險檢查、交易決策", category: "trading" },
   { id: "tl-open", agentId: "trading-lab", name: "開盤交易", schedule: "45 22 * * 1-5", tz: "Asia/Taipei", description: "開盤 15 分鐘後檢查持倉、掃描買點", category: "trading" },

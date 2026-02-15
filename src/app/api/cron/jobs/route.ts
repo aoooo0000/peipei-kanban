@@ -1,77 +1,64 @@
 import { NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import { join } from "path";
-import { CRON_JOBS, type CronJobDef } from "@/lib/cronJobs";
 import { supabaseGetFirstData } from "@/lib/supabaseRest";
 
 export const dynamic = "force-dynamic";
 
-interface CronJob {
+interface CronStateJob {
+  id?: string;
+  agentId?: string;
+  name?: string;
+  enabled?: boolean;
+  schedule?: { kind?: string; expr?: string; tz?: string };
+  state?: {
+    lastStatus?: string;
+    lastRunAtMs?: number;
+    nextRunAtMs?: number;
+    lastDurationMs?: number;
+    consecutiveErrors?: number;
+  };
+}
+
+export interface CronJobApiItem {
   id: string;
   agentId: string;
   name: string;
+  schedule: string;
+  tz: string;
   enabled: boolean;
-  schedule: {
-    kind: string;
-    expr: string;
-    tz?: string;
-  };
-  description?: string;
-  category?: CronJobDef["category"];
-  payload?: Record<string, unknown>;
-  state?: {
-    nextRunAtMs?: number;
-    lastRunAtMs?: number;
-    lastStatus?: string;
-  };
+  lastStatus: string;
+  lastRunAtMs?: number;
+  nextRunAtMs?: number;
+  lastDurationMs?: number;
+  consecutiveErrors: number;
 }
 
-function staticToRuntimeJobs(): CronJob[] {
-  return CRON_JOBS.map((job) => ({
-    id: job.id,
-    agentId: job.agentId,
-    name: job.name,
-    enabled: true,
-    schedule: {
-      kind: "cron",
-      expr: job.schedule,
-      tz: job.tz,
-    },
-    description: job.description,
-    category: job.category,
-    payload: {},
-    state: {},
-  }));
-}
-
-function enrichJobs(jobs: CronJob[]): CronJob[] {
-  return jobs.map((job) => {
-    const matched = CRON_JOBS.find((item) => item.id === job.id);
-    return {
-      ...job,
-      description: job.description ?? matched?.description ?? "",
-      category: job.category ?? matched?.category ?? "other",
-    };
-  });
+function toApiJob(job: CronStateJob, index: number): CronJobApiItem {
+  return {
+    id: job.id || `job-${index}`,
+    agentId: job.agentId || "main",
+    name: job.name || `Job ${index + 1}`,
+    schedule: job.schedule?.expr || "* * * * *",
+    tz: job.schedule?.tz || "Asia/Taipei",
+    enabled: job.enabled ?? true,
+    lastStatus: job.state?.lastStatus || "unknown",
+    lastRunAtMs: job.state?.lastRunAtMs,
+    nextRunAtMs: job.state?.nextRunAtMs,
+    lastDurationMs: job.state?.lastDurationMs,
+    consecutiveErrors: job.state?.consecutiveErrors ?? 0,
+  };
 }
 
 export async function GET() {
-  // Try local file first (works on Mac mini dev)
-  try {
-    const jobsPath = join(process.env.HOME || "", ".openclaw", "cron", "jobs.json");
-    const raw = await readFile(jobsPath, "utf-8");
-    const parsed = JSON.parse(raw);
-    const jobs = Array.isArray(parsed) ? parsed : parsed.jobs;
-    if (Array.isArray(jobs)) {
-      return NextResponse.json({ jobs: enrichJobs(jobs as CronJob[]), source: "local" });
-    }
-  } catch {
-    // Try Supabase (works on Vercel)
-    const supabaseJobs = await supabaseGetFirstData<CronJob[]>("cronState");
-    if (supabaseJobs && Array.isArray(supabaseJobs)) {
-      return NextResponse.json({ jobs: enrichJobs(supabaseJobs), source: "supabase" });
-    }
+  const cronState = await supabaseGetFirstData<unknown>("cronState");
+
+  let sourceJobs: CronStateJob[] = [];
+  if (Array.isArray(cronState)) {
+    sourceJobs = cronState as CronStateJob[];
+  } else if (cronState && typeof cronState === "object" && Array.isArray((cronState as { jobs?: unknown[] }).jobs)) {
+    sourceJobs = (cronState as { jobs: CronStateJob[] }).jobs;
   }
 
-  return NextResponse.json({ jobs: staticToRuntimeJobs(), source: "fallback" });
+  const jobs = sourceJobs.map(toApiJob);
+
+  return NextResponse.json({ jobs, source: "supabase" });
 }
