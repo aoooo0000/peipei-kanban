@@ -7,6 +7,21 @@ import { fetchJSON, mutationRequest } from "@/lib/api";
 
 const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 const STATUSES: TaskStatus[] = ["Ideas", "To-do", "進行中", "Review", "完成"];
+
+type BoardTab = "notion" | "todoQueue";
+
+interface TodoQueueItem {
+  text: string;
+  done: boolean;
+  priority?: string;
+  section?: string;
+}
+
+interface TodoQueueResponse {
+  title?: string;
+  updatedAt?: string | null;
+  items: TodoQueueItem[];
+}
 const STATUS_META: Record<TaskStatus, { emoji: string; label: string; dot: string }> = {
   Ideas: { emoji: "💡", label: "Ideas", dot: "status-glow-thinking" },
   "To-do": { emoji: "📝", label: "To-do", dot: "status-glow-thinking" },
@@ -290,6 +305,8 @@ function TaskForm({ initial, onSubmit, onClose }: { initial?: Partial<Task>; onS
 
 export default function KanbanBoard() {
   const { data, error, mutate } = useSWR<{ tasks: Task[] }>("/api/tasks", fetcher, { refreshInterval: 15000 });
+  const { data: todoData, error: todoError, mutate: mutateTodo } = useSWR<TodoQueueResponse>("/api/tasks/todo", fetcher, { refreshInterval: 15000 });
+  const [activeTab, setActiveTab] = useState<BoardTab>("notion");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [addingStatus, setAddingStatus] = useState<TaskStatus | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
@@ -429,89 +446,124 @@ export default function KanbanBoard() {
   return (
     <>
       <h1 className="text-xl font-bold mb-4 md:mb-6">🐷 霈霈豬任務看板</h1>
-      {(error || opError) && (
+
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          onClick={() => setActiveTab("notion")}
+          className={`rounded-lg px-3 py-1.5 text-sm border ${activeTab === "notion" ? "bg-[#667eea]/35 border-[#8ea3ff]/70 text-white" : "bg-white/5 border-white/15 text-white/80 hover:bg-white/10"}`}
+        >
+          Notion 看板
+        </button>
+        <button
+          onClick={() => setActiveTab("todoQueue")}
+          className={`rounded-lg px-3 py-1.5 text-sm border ${activeTab === "todoQueue" ? "bg-[#667eea]/35 border-[#8ea3ff]/70 text-white" : "bg-white/5 border-white/15 text-white/80 hover:bg-white/10"}`}
+        >
+          工作佇列
+        </button>
+      </div>
+
+      {(error || opError || todoError) && (
         <div className="mb-3 rounded-xl border border-red-400/40 bg-red-500/15 p-3">
-          <p className="text-sm text-red-100">{opError || "任務資料載入失敗"}</p>
-          <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-2 py-1 text-xs">重試</button>
+          <p className="text-sm text-red-100">{opError || (activeTab === "notion" ? "任務資料載入失敗" : "工作佇列載入失敗")}</p>
+          <button onClick={() => (activeTab === "notion" ? mutate() : mutateTodo())} className="mt-2 rounded bg-red-500/35 px-2 py-1 text-xs">重試</button>
         </div>
       )}
-      {!data && !error && <div className="mb-4 h-24 rounded-2xl skeleton-glass" />}
-      <div className={boardLayoutClass}>
-        {STATUSES.map((status) => {
-          const count = grouped[status]?.length ?? 0;
-          const isOpen = screenMode !== "small" || accordionOpen[status];
 
-          return (
-            <Column
-              key={status}
-              screenMode={screenMode}
-              hasCards={count > 0}
-              isOver={dragOverStatus === status}
-              onDragOver={() => {
-                if (screenMode === "small") return;
-                setDragOverStatus(status);
-              }}
-              onDragLeave={() => {
-                if (dragOverStatus === status) setDragOverStatus(null);
-              }}
-              onDrop={async () => {
-                if (!draggingTaskId || screenMode === "small") return;
-                const task = tasks.find((t) => t.id === draggingTaskId);
-                if (task && task.status !== status) await moveTask(task.id, status);
-                setDraggingTaskId(null);
-                setDragOverStatus(null);
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (screenMode !== "small") return;
-                  setAccordionOpen((prev) => ({ ...prev, [status]: !prev[status] }));
+      {activeTab === "notion" && !data && !error && <div className="mb-4 h-24 rounded-2xl skeleton-glass" />}
+      {activeTab === "todoQueue" && !todoData && !todoError && <div className="mb-4 h-24 rounded-2xl skeleton-glass" />}
+
+      {activeTab === "notion" ? (
+        <div className={boardLayoutClass}>
+          {STATUSES.map((status) => {
+            const count = grouped[status]?.length ?? 0;
+            const isOpen = screenMode !== "small" || accordionOpen[status];
+
+            return (
+              <Column
+                key={status}
+                screenMode={screenMode}
+                hasCards={count > 0}
+                isOver={dragOverStatus === status}
+                onDragOver={() => {
+                  if (screenMode === "small") return;
+                  setDragOverStatus(status);
                 }}
-                className={`mb-1 w-full flex items-center justify-between ${screenMode === "small" ? "cursor-pointer" : "cursor-default"}`}
+                onDragLeave={() => {
+                  if (dragOverStatus === status) setDragOverStatus(null);
+                }}
+                onDrop={async () => {
+                  if (!draggingTaskId || screenMode === "small") return;
+                  const task = tasks.find((t) => t.id === draggingTaskId);
+                  if (task && task.status !== status) await moveTask(task.id, status);
+                  setDraggingTaskId(null);
+                  setDragOverStatus(null);
+                }}
               >
-                <h2 className="font-semibold text-left flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${STATUS_META[status].dot}`} />
-                  {STATUS_META[status].emoji} {STATUS_META[status].label}
-                </h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-white/10 rounded-full px-2 py-0.5">{count}</span>
-                  {screenMode === "small" && <span className="text-zinc-400 text-xs">{isOpen ? "▾" : "▸"}</span>}
-                </div>
-              </button>
-
-              {isOpen && (
-                <>
-                  <div className="space-y-2.5 min-h-12 mt-2">
-                    {(grouped[status] ?? []).map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        onEdit={setEditingTask}
-                        onDelete={deleteTask}
-                        onMove={moveTask}
-                        onViewDetail={setDetailTask}
-                        compact={screenMode === "small"}
-                        canDrag={screenMode !== "small"}
-                        isDragging={draggingTaskId === task.id}
-                        onDragStart={(dragTask) => {
-                          if (screenMode === "small") return;
-                          setDraggingTaskId(dragTask.id);
-                        }}
-                        onDragEnd={() => {
-                          setDraggingTaskId(null);
-                          setDragOverStatus(null);
-                        }}
-                      />
-                    ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (screenMode !== "small") return;
+                    setAccordionOpen((prev) => ({ ...prev, [status]: !prev[status] }));
+                  }}
+                  className={`mb-1 w-full flex items-center justify-between ${screenMode === "small" ? "cursor-pointer" : "cursor-default"}`}
+                >
+                  <h2 className="font-semibold text-left flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${STATUS_META[status].dot}`} />
+                    {STATUS_META[status].emoji} {STATUS_META[status].label}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-white/10 rounded-full px-2 py-0.5">{count}</span>
+                    {screenMode === "small" && <span className="text-zinc-400 text-xs">{isOpen ? "▾" : "▸"}</span>}
                   </div>
-                  <button onClick={() => setAddingStatus(status)} className="mt-3 w-full rounded-lg border border-dashed border-blue-400/50 py-2 text-sm text-blue-300 hover:bg-[#7c90f2]/10">+ 新增任務</button>
-                </>
-              )}
-            </Column>
-          );
-        })}
-      </div>
+                </button>
+
+                {isOpen && (
+                  <>
+                    <div className="space-y-2.5 min-h-12 mt-2">
+                      {(grouped[status] ?? []).map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onEdit={setEditingTask}
+                          onDelete={deleteTask}
+                          onMove={moveTask}
+                          onViewDetail={setDetailTask}
+                          compact={screenMode === "small"}
+                          canDrag={screenMode !== "small"}
+                          isDragging={draggingTaskId === task.id}
+                          onDragStart={(dragTask) => {
+                            if (screenMode === "small") return;
+                            setDraggingTaskId(dragTask.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggingTaskId(null);
+                            setDragOverStatus(null);
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <button onClick={() => setAddingStatus(status)} className="mt-3 w-full rounded-lg border border-dashed border-blue-400/50 py-2 text-sm text-blue-300 hover:bg-[#7c90f2]/10">+ 新增任務</button>
+                  </>
+                )}
+              </Column>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {(todoData?.items ?? []).map((item, idx) => (
+            <div key={`${item.text}-${idx}`} className={`rounded-xl border p-3 ${item.done ? "border-emerald-400/35 bg-emerald-400/10" : "border-white/15 bg-white/5"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <p className={`text-sm ${item.done ? "text-emerald-100 line-through" : "text-white/95"}`}>{item.text}</p>
+                <span className="text-xs text-white/65 shrink-0">{item.priority ?? item.section ?? "未分類"}</span>
+              </div>
+            </div>
+          ))}
+          {(todoData?.items ?? []).length === 0 && (
+            <div className="glass-card rounded-xl p-4 text-sm text-white/70">目前沒有工作佇列資料</div>
+          )}
+        </div>
+      )}
 
       {addingStatus && <TaskForm onClose={() => setAddingStatus(null)} onSubmit={(input) => createTask(addingStatus, input)} initial={{ status: addingStatus }} />}
       {editingTask && <TaskForm initial={editingTask} onClose={() => setEditingTask(null)} onSubmit={(input) => updateTask(editingTask.id, input)} />}
