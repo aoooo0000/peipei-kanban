@@ -82,7 +82,14 @@ export default function Home() {
 
   const todoCount = (tasksData?.tasks ?? []).filter((t) => t.status !== "完成").length;
   const todayScheduleCount = countTodayJobs();
-  const recentLogs = (logsData?.logs ?? []).slice(0, 5);
+  const allLogs = logsData?.logs ?? [];
+  // Filter logs for today (Taiwan timezone) for the count
+  const todayKey = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Taipei" })).toDateString();
+  const todayLogCount = allLogs.filter((log) => {
+    const logDate = new Date(new Date(log.timestamp).toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+    return logDate.toDateString() === todayKey;
+  }).length;
+  const recentLogs = allLogs.slice(0, 5);
   const reminders = remindersData ?? [];
   const hasError = tasksError || logsError || statusError || remindersError;
 
@@ -182,7 +189,7 @@ export default function Home() {
           </Link>
           <Link href="/logs" className="glass-card rounded-2xl p-4 border border-white/10">
             <p className="text-xs text-white/75">📝 今日活動數</p>
-            <p className="text-2xl font-bold mt-1">{recentLogs.length}</p>
+            <p className="text-2xl font-bold mt-1">{todayLogCount}</p>
           </Link>
         </div>
       </section>

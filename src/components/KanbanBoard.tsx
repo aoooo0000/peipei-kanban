@@ -160,22 +160,37 @@ function Column({
   );
 }
 
-function TaskDetailDrawer({ task, onClose, onUpdate }: { task: Task; onClose: () => void; onUpdate: () => void }) {
+function TaskDetailDrawer({ task, onClose, onUpdate }: { task: Task; onClose: () => void; onUpdate: (optimisticNote: string) => void }) {
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Local note state for optimistic display — initialized from task.note, updated on reply
+  const [localNote, setLocalNote] = useState(task.note ?? "");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Sync when the parent task prop changes (e.g. SWR revalidation)
+  useEffect(() => {
+    setLocalNote(task.note ?? "");
+  }, [task.note]);
 
   const handleReply = async () => {
     if (!replyText.trim()) return;
     setSubmitting(true);
+    const newNote = localNote ? `${localNote}\n\n---\n${replyText}` : replyText;
+    // Optimistic: show the new note immediately
+    setLocalNote(newNote);
+    setReplyText("");
+    // Scroll to bottom after optimistic update
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }));
     try {
-      const newNote = task.note ? `${task.note}\n\n---\n${replyText}` : replyText;
       await mutationRequest(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ note: newNote }),
       });
-      setReplyText("");
-      onUpdate();
+      onUpdate(newNote);
+    } catch {
+      // Revert optimistic update on failure
+      setLocalNote(task.note ?? "");
     } finally {
       setSubmitting(false);
     }
@@ -200,11 +215,11 @@ function TaskDetailDrawer({ task, onClose, onUpdate }: { task: Task; onClose: ()
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-2xl ml-4">×</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
           <h3 className="text-sm font-semibold text-zinc-400 mb-3">💬 備註對話</h3>
-          {task.note ? (
+          {localNote ? (
             <div className="space-y-3">
-              {task.note.split("\n---\n").map((msg, idx) => (
+              {localNote.split("\n---\n").map((msg, idx) => (
                 <div key={idx} className="rounded-lg glass-card p-3 border border-white/10">
                   <p className="text-sm text-zinc-200 whitespace-pre-wrap">{msg}</p>
                 </div>
@@ -340,21 +355,29 @@ export default function KanbanBoard() {
     };
   }, []);
 
-  const moveTask = async (id: string, status: TaskStatus) => {
+  const moveTask = async (id: string, newStatus: TaskStatus) => {
+    setOpError(null);
+    // Optimistic update: move task in local cache immediately
+    const prev = data;
+    mutate(
+      prev ? { tasks: prev.tasks.map((t) => (t.id === id ? { ...t, status: newStatus } : t)) } : prev,
+      false,
+    );
     try {
-      setOpError(null);
-      await mutationRequest(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+      await mutationRequest(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
       mutate();
     } catch (e) {
+      // Rollback on error
+      mutate(prev, false);
       setOpError(e instanceof Error ? e.message : "更新任務失敗");
     }
   };
 
   const createTask = async (status: TaskStatus, input: Partial<Task>) => {
+    setOpError(null);
+    setAddingStatus(null);
     try {
-      setOpError(null);
       await mutationRequest("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, status }) });
-      setAddingStatus(null);
       mutate();
     } catch (e) {
       setOpError(e instanceof Error ? e.message : "新增任務失敗");
@@ -362,23 +385,37 @@ export default function KanbanBoard() {
   };
 
   const updateTask = async (id: string, input: Partial<Task>) => {
+    setOpError(null);
+    // Optimistic update
+    const prev = data;
+    mutate(
+      prev ? { tasks: prev.tasks.map((t) => (t.id === id ? { ...t, ...input } : t)) } : prev,
+      false,
+    );
+    setEditingTask(null);
     try {
-      setOpError(null);
       await mutationRequest(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-      setEditingTask(null);
       mutate();
     } catch (e) {
+      mutate(prev, false);
       setOpError(e instanceof Error ? e.message : "更新任務失敗");
     }
   };
 
   const deleteTask = async (id: string) => {
     if (!confirm("確定要刪除這個任務？")) return;
+    setOpError(null);
+    // Optimistic: remove from list immediately
+    const prev = data;
+    mutate(
+      prev ? { tasks: prev.tasks.filter((t) => t.id !== id) } : prev,
+      false,
+    );
     try {
-      setOpError(null);
       await mutationRequest(`/api/tasks/${id}`, { method: "DELETE" });
       mutate();
     } catch (e) {
+      mutate(prev, false);
       setOpError(e instanceof Error ? e.message : "刪除任務失敗");
     }
   };
@@ -478,7 +515,16 @@ export default function KanbanBoard() {
 
       {addingStatus && <TaskForm onClose={() => setAddingStatus(null)} onSubmit={(input) => createTask(addingStatus, input)} initial={{ status: addingStatus }} />}
       {editingTask && <TaskForm initial={editingTask} onClose={() => setEditingTask(null)} onSubmit={(input) => updateTask(editingTask.id, input)} />}
-      {detailTask && <TaskDetailDrawer task={detailTask} onClose={() => setDetailTask(null)} onUpdate={() => { mutate(); setDetailTask(tasks.find(t => t.id === detailTask.id) || null); }} />}
+      {detailTask && <TaskDetailDrawer task={detailTask} onClose={() => setDetailTask(null)} onUpdate={(optimisticNote: string) => {
+        // Optimistic: update note in SWR cache + detail view immediately
+        const prev = data;
+        const updatedTask = { ...detailTask, note: optimisticNote };
+        setDetailTask(updatedTask);
+        if (prev) {
+          mutate({ tasks: prev.tasks.map((t) => (t.id === detailTask.id ? updatedTask : t)) }, false);
+        }
+        mutate();
+      }} />}
     </>
   );
 }
