@@ -289,7 +289,7 @@ function TaskForm({ initial, onSubmit, onClose }: { initial?: Partial<Task>; onS
               {STATUSES.map((s) => <option key={s} value={s}>{STATUS_META[s].emoji} {STATUS_META[s].label}</option>)}
             </select>
           )}
-          <select className="w-full rounded bg-black/30 p-2" value={assignee} onChange={(e) => setAssignee(e.target.value as Assignee)}><option>Andy</option><option>霈霈豬</option></select>
+          <select className="w-full rounded bg-black/30 p-2" value={assignee} onChange={(e) => setAssignee(e.target.value as Assignee)}><option>Andy</option><option>霈霈豬</option><option>實習生阿霈</option><option>Trading Lab</option><option>Coder</option></select>
           <select className="w-full rounded bg-black/30 p-2" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}><option>🔴 高</option><option>🟡 中</option><option>🟢 低</option></select>
           <input type="date" className="w-full rounded bg-black/30 p-2" value={dueDate?.slice(0, 10)} onChange={(e) => setDueDate(e.target.value)} />
           <textarea className="w-full rounded bg-black/30 p-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="備註" rows={3} />

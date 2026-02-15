@@ -7,8 +7,7 @@ const TABS = [
   { path: "/", icon: "🏠", label: "首頁" },
   { path: "/dashboard", icon: "📋", label: "看板" },
   { path: "/schedule", icon: "📊", label: "分析" },
-  { path: "/logs", icon: "📝", label: "日誌" },
-  { path: "/docs", icon: "📚", label: "Docs" },
+  { path: "/docs", icon: "📚", label: "文件" },
 ];
 
 export default function BottomNav() {

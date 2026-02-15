@@ -6,7 +6,7 @@ import path from "path";
 const databaseId = process.env.NOTION_DATABASE_ID || "30155d1f-de22-8190-950d-c20cbff9e520";
 
 export type TaskStatus = "Ideas" | "To-do" | "進行中" | "Review" | "完成";
-export type Assignee = "Andy" | "霈霈豬";
+export type Assignee = "Andy" | "霈霈豬" | "實習生阿霈" | "Trading Lab" | "Coder";
 export type Priority = "🔴 高" | "🟡 中" | "🟢 低";
 
 export type Task = {
