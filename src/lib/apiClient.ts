@@ -1,4 +1,4 @@
-const LOCAL_BASE = "http://wuyirudemac-mini.tail97b933.ts.net:3456";
+const LOCAL_BASE = "https://wuyirudemac-mini.tail97b933.ts.net:3457";
 
 let useLocal: boolean | null = null;
 

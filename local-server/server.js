@@ -268,6 +268,22 @@ app.get("/api/sessions", (_req, res) => {
   res.json({ sessions, count: sessions.length });
 });
 
+// HTTPS for Tailscale (mixed content workaround)
+const HTTPS_PORT = Number(process.env.HTTPS_PORT || 3457);
+const certPath = path.join(__dirname, "certs", "cert.pem");
+const keyPath = path.join(__dirname, "certs", "key.pem");
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  const https = require("https");
+  const httpsServer = https.createServer(
+    { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) },
+    app
+  );
+  httpsServer.listen(HTTPS_PORT, "0.0.0.0", () => {
+    console.log(`peipei-local-api HTTPS running on https://0.0.0.0:${HTTPS_PORT}`);
+  });
+}
+
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`peipei-local-api running on http://0.0.0.0:${PORT}`);
+  console.log(`peipei-local-api HTTP running on http://0.0.0.0:${PORT}`);
 });
