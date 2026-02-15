@@ -4,9 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { fetchJSON } from "@/lib/api";
-
-const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
+import { fetchApiJSON } from "@/lib/apiClient";
 
 interface DocFile {
   name: string;
@@ -35,7 +33,13 @@ function getCategory(file: DocFile): (typeof CATEGORY_ORDER)[number] {
 }
 
 export default function DocsPage() {
-  const { data, error, mutate } = useSWR<DocsResponse>("/api/docs", fetcher, { refreshInterval: 30000 });
+  const { data: docsWrap, error, mutate } = useSWR<{ data: DocsResponse; source: "local" | "fallback" }>(
+    "docs-hybrid",
+    () => fetchApiJSON<DocsResponse>("/api/docs", "/api/docs"),
+    { refreshInterval: 30000 },
+  );
+  const data = docsWrap?.data;
+  const connectionSource = docsWrap?.source;
   const files = useMemo(() => data?.files ?? [], [data?.files]);
 
   const [selectedName, setSelectedName] = useState<string>("MEMORY.md");
@@ -63,9 +67,16 @@ export default function DocsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2">
         <h1 className="text-xl font-bold">📚 Docs 文件瀏覽器</h1>
-        {data?.syncedAt && <span className="text-xs text-zinc-400">同步：{new Date(data.syncedAt).toLocaleString("zh-TW", { hour12: false })}</span>}
+        <div className="flex items-center gap-2">
+          {connectionSource && (
+            <span className="text-xs rounded-full border border-white/15 px-2 py-1 bg-black/20">
+              {connectionSource === "local" ? "🟢 Real-time" : "🟡 Cached"}
+            </span>
+          )}
+          {data?.syncedAt && <span className="text-xs text-zinc-400">同步：{new Date(data.syncedAt).toLocaleString("zh-TW", { hour12: false })}</span>}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">

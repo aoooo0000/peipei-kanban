@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetchJSON } from "@/lib/api";
+import { fetchApiJSON } from "@/lib/apiClient";
 
 const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
@@ -209,8 +210,14 @@ function parseDurationMs(log: LogEntry): number | null {
 }
 
 export default function SchedulePage() {
-  const { data, error, mutate } = useSWR<{ jobs: CronJob[] }>("/api/cron/jobs", fetcher, { refreshInterval: 30000 });
+  const { data: jobsWrap, error, mutate } = useSWR<{ data: { jobs: CronJob[] }; source: "local" | "fallback" }>(
+    "cron-hybrid",
+    () => fetchApiJSON<{ jobs: CronJob[] }>("/api/cron", "/api/cron/jobs"),
+    { refreshInterval: 30000 },
+  );
   const { data: logsData } = useSWR<{ logs: LogEntry[] }>("/api/logs", fetcher, { refreshInterval: 30000 });
+  const data = jobsWrap?.data;
+  const connectionSource = jobsWrap?.source;
   const [agentFilter, setAgentFilter] = useState<AgentFilter>("all");
   const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
@@ -295,7 +302,14 @@ export default function SchedulePage() {
           <button onClick={() => mutate()} className="mt-2 rounded bg-red-500/35 px-3 py-1 text-xs">重試</button>
         </div>
       )}
-      <h1 className="text-xl font-bold mb-4">🗓️ 排程</h1>
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <h1 className="text-xl font-bold">🗓️ 排程</h1>
+        {connectionSource && (
+          <span className="text-xs rounded-full border border-white/15 px-2 py-1 bg-black/20">
+            {connectionSource === "local" ? "🟢 Real-time" : "🟡 Cached"}
+          </span>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-5">
         {[

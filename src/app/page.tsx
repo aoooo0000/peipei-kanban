@@ -5,6 +5,7 @@ import useSWR from "swr";
 import KanbanBoard from "@/components/KanbanBoard";
 import { CRON_JOBS } from "@/lib/cronJobs";
 import { fetchJSON } from "@/lib/api";
+import { fetchApiJSON } from "@/lib/apiClient";
 
 const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
@@ -77,7 +78,11 @@ function formatLastActive(iso: string | null) {
 export default function Home() {
   const { data: tasksData, error: tasksError, mutate: retryTasks } = useSWR<{ tasks: Array<{ status: string }> }>("/api/tasks", fetcher, { refreshInterval: 15000 });
   const { data: logsData, error: logsError } = useSWR<{ logs: Array<{ id: string; title: string; timestamp: string; type: string }> }>("/api/logs", fetcher, { refreshInterval: 10000 });
-  const { data: statusData, error: statusError } = useSWR<StatusResponse>("/api/status", fetcher, { refreshInterval: 10000 });
+  const { data: statusWrap, error: statusError } = useSWR<{ data: StatusResponse; source: "local" | "fallback" }>(
+    "status-hybrid",
+    () => fetchApiJSON<StatusResponse>("/api/agents", "/api/status"),
+    { refreshInterval: 10000 },
+  );
   const { data: remindersData, error: remindersError } = useSWR<Reminder[]>("/api/reminders", fetcher, { refreshInterval: 30000 });
 
   const todoCount = (tasksData?.tasks ?? []).filter((t) => t.status !== "完成").length;
@@ -91,6 +96,8 @@ export default function Home() {
   }).length;
   const recentLogs = allLogs.slice(0, 5);
   const reminders = remindersData ?? [];
+  const statusData = statusWrap?.data;
+  const connectionSource = statusWrap?.source;
   const hasError = tasksError || logsError || statusError || remindersError;
 
   return (
@@ -106,6 +113,11 @@ export default function Home() {
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-xl font-bold">Agent 狀態</h2>
           <div className="flex items-center gap-2 shrink-0">
+            {connectionSource && (
+              <span className="text-xs rounded-full border border-white/15 px-2 py-1 bg-black/20">
+                {connectionSource === "local" ? "🟢 Real-time" : "🟡 Cached"}
+              </span>
+            )}
             {statusData && <p className="text-xs text-white/70 hidden sm:block">v{statusData.version} · uptime {statusData.uptime}</p>}
             <Link href="/settings" aria-label="前往設定" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-sm hover:bg-white/10">
               ⚙️
