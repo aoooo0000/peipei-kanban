@@ -7,7 +7,7 @@ import { fetchJSON } from "@/lib/api";
 
 const fetcher = <T,>(url: string) => fetchJSON<T>(url, 9000);
 
-type AgentFilter = "all" | "main" | "trading-lab" | "coder";
+type AgentFilter = "all" | "main" | "trading-lab" | "coder" | "learner";
 
 interface CronJob {
   id: string;
@@ -32,6 +32,7 @@ const AGENT_META: Record<string, { emoji: string; label: string; color: string; 
   main: { emoji: "🐷", label: "霈霈豬", color: "text-indigo-300", bg: "bg-indigo-500/20", border: "border-indigo-400/40" },
   "trading-lab": { emoji: "📈", label: "Trading Lab", color: "text-emerald-300", bg: "bg-emerald-500/20", border: "border-emerald-400/40" },
   coder: { emoji: "💻", label: "Coder", color: "text-blue-300", bg: "bg-blue-500/20", border: "border-blue-400/40" },
+  learner: { emoji: "🎓", label: "實習生阿霈", color: "text-amber-300", bg: "bg-amber-500/20", border: "border-amber-400/40" },
 };
 
 const DAYS = ["一", "二", "三", "四", "五", "六", "日"];
@@ -327,6 +328,7 @@ export default function SchedulePage() {
           { key: "main" as AgentFilter, label: "霈霈豬", emoji: "🐷" },
           { key: "trading-lab" as AgentFilter, label: "Trading Lab", emoji: "📈" },
           { key: "coder" as AgentFilter, label: "Coder", emoji: "💻" },
+          { key: "learner" as AgentFilter, label: "阿霈", emoji: "🎓" },
         ].map(({ key, label, emoji }, idx) => (
           <button
             key={key}

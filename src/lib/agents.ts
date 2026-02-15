@@ -4,4 +4,5 @@ export const AGENTS = [
   { id: "peipei", name: "霈霈豬", emoji: "🐷", role: "主管", status: "idle" as AgentStatus },
   { id: "trading-lab", name: "Trading Lab", emoji: "📈", role: "交易分析", status: "idle" as AgentStatus },
   { id: "coder", name: "Coder", emoji: "💻", role: "開發", status: "idle" as AgentStatus },
+  { id: "learner", name: "實習生阿霈", emoji: "🎓", role: "學習研發", status: "idle" as AgentStatus },
 ];
